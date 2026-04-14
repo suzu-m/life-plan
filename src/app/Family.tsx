@@ -110,7 +110,9 @@ export default function Family() {
             + 追加
           </Button>
         </Box>
-        <Button variant="contained" sx={{ marginTop: 2 }}></Button>
+        <Button variant="contained" sx={{ marginTop: 2 }} href="/expense/home">
+          支出＞住宅の入力へ
+        </Button>
       </Box>
     </Box>
   )
