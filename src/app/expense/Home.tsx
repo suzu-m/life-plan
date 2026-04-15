@@ -10,7 +10,8 @@ import RadioGroup from '@mui/material/RadioGroup'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import DeleteIcon from '@mui/icons-material/Delete'
-import Navi from '../../components/common/Navi'
+import EditIcon from '@mui/icons-material/Edit'
+import Navi from '@/components/common/Navi'
 import NumberField from '@/components/common/NumberField'
 import RentalCard from '@/components/feature/expense/RentalCard'
 import OwnCard from '@/components/feature/expense/OwnCard'
@@ -41,12 +42,14 @@ export default function Home() {
   const {
     plans,
     draft,
+    editingPlanId,
     updateDraft,
     updateDraftType,
     updateDraftRental,
     updateDraftLoanMode,
     updateDraftLoan,
-    addDraftPlan,
+    saveDraftPlan,
+    editPlan,
     deletePlan,
     resetDraft
   } = useHomeStore()
@@ -88,12 +91,74 @@ export default function Home() {
         <Typography color="text.secondary" sx={{ marginBottom: 3 }}>
           期間ごとに賃貸・持ち家を分けて登録できます。
         </Typography>
+        {editingPlanId !== null && (
+          <Typography color="primary" sx={{ marginBottom: 2 }}>
+            編集モードです。内容を変更して「この期間を更新」を押してください。
+          </Typography>
+        )}
 
         <Stack spacing={2} sx={{ marginBottom: 4 }}>
+          <Card>
+            <CardContent>
+              <Stack spacing={3}>
+                {/* 期間と住居タイプを先に決めてから、下の詳細入力を出し分ける。 */}
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <NumberField
+                    label="開始年"
+                    value={draft.fromYear ?? currentYear}
+                    min={currentYear}
+                    onValueChange={(value) => {
+                      updateDraft({
+                        fromYear: value === null ? null : Number(value)
+                      })
+                    }}
+                  />
+                  <Typography>~</Typography>
+                  <NumberField
+                    label="終了年"
+                    value={draft.toYear ?? currentYear}
+                    min={draft.fromYear ?? currentYear}
+                    onValueChange={(value) => {
+                      updateDraft({
+                        toYear: value === null ? null : Number(value)
+                      })
+                    }}
+                  />
+                  <FormControl>
+                    <RadioGroup
+                      row
+                      value={draft.type}
+                      onChange={(e) => updateDraftType(e.target.value as HomePlan['type'])}
+                    >
+                      <FormControlLabel value="rental" control={<Radio />} label="賃貸" />
+                      <FormControlLabel value="own" control={<Radio />} label="持ち家" />
+                    </RadioGroup>
+                  </FormControl>
+                </Box>
+
+                {draft.type === 'rental' ? (
+                  <RentalCard value={draft.rental} onChange={updateDraftRental} />
+                ) : (
+                  <OwnCard value={draft.own} onLoanModeChange={updateDraftLoanMode} onLoanChange={updateDraftLoan} />
+                )}
+
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                  <Button variant="text" onClick={resetDraft}>
+                    {editingPlanId !== null ? '編集をキャンセル' : '入力をリセット'}
+                  </Button>
+                  {/* 年の整合性が取れていれば、詳細未入力でも期間プランとして保存できる。 */}
+                  <Button variant="contained" onClick={saveDraftPlan} disabled={!isDraftValid}>
+                    {editingPlanId !== null ? 'この期間を更新' : 'この期間を追加'}
+                  </Button>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+
           {sortedPlans.map((plan) => (
             <Card key={plan.id} variant="outlined">
               <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
                   {plan.type === 'rental' ? (
                     <Box>
                       <Typography>{formatPeriod(plan)}</Typography>
@@ -115,6 +180,12 @@ export default function Home() {
                           const period = loan.period ? `${loan.period}年` : '-'
                           const rateType =
                             loan.rateType === 'fixed' ? '固定' : loan.rateType === 'variable' ? '変動' : '-'
+                          const repaymentType =
+                            loan.repaymentType === 'equal-principal-interest'
+                              ? '元利均等返済'
+                              : loan.repaymentType === 'equal-principal'
+                                ? '元金均等返済'
+                                : '-'
                           const interest = loan.interestRate ?? '-'
                           return (
                             <Box key={loan.id} sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -122,6 +193,7 @@ export default function Home() {
                               <Typography>{amount}円</Typography>
                               <Typography>{period}</Typography>
                               <Typography>{rateType}</Typography>
+                              <Typography>{repaymentType}</Typography>
                               <Typography>{interest}%</Typography>
                             </Box>
                           )
@@ -129,71 +201,19 @@ export default function Home() {
                       </Box>
                     </Box>
                   )}
-                  <IconButton aria-label="delete" onClick={() => deletePlan(plan.id)}>
-                    <DeleteIcon />
-                  </IconButton>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <IconButton aria-label="edit" onClick={() => editPlan(plan.id)}>
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton aria-label="delete" onClick={() => deletePlan(plan.id)}>
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
                 </Box>
               </CardContent>
             </Card>
           ))}
         </Stack>
-
-        <Card>
-          <CardContent>
-            <Stack spacing={3}>
-              {/* 期間と住居タイプを先に決めてから、下の詳細入力を出し分ける。 */}
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-                <NumberField
-                  label="開始年"
-                  value={draft.fromYear ?? currentYear}
-                  min={currentYear}
-                  onValueChange={(value) => {
-                    updateDraft({
-                      fromYear: value === null ? null : Number(value)
-                    })
-                  }}
-                />
-                <Typography>~</Typography>
-                <NumberField
-                  label="終了年"
-                  value={draft.toYear ?? currentYear}
-                  min={draft.fromYear ?? currentYear}
-                  onValueChange={(value) => {
-                    updateDraft({
-                      toYear: value === null ? null : Number(value)
-                    })
-                  }}
-                />
-                <FormControl>
-                  <RadioGroup
-                    row
-                    value={draft.type}
-                    onChange={(e) => updateDraftType(e.target.value as HomePlan['type'])}
-                  >
-                    <FormControlLabel value="rental" control={<Radio />} label="賃貸" />
-                    <FormControlLabel value="own" control={<Radio />} label="持ち家" />
-                  </RadioGroup>
-                </FormControl>
-              </Box>
-
-              {draft.type === 'rental' ? (
-                <RentalCard value={draft.rental} onChange={updateDraftRental} />
-              ) : (
-                <OwnCard value={draft.own} onLoanModeChange={updateDraftLoanMode} onLoanChange={updateDraftLoan} />
-              )}
-
-              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                <Button variant="text" onClick={resetDraft}>
-                  入力をリセット
-                </Button>
-                {/* 年の整合性が取れていれば、詳細未入力でも期間プランとして保存できる。 */}
-                <Button variant="contained" onClick={addDraftPlan} disabled={!isDraftValid}>
-                  この期間を追加
-                </Button>
-              </Box>
-            </Stack>
-          </CardContent>
-        </Card>
       </Box>
     </Box>
   )

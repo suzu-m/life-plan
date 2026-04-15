@@ -4,6 +4,7 @@ import { persist } from 'zustand/middleware'
 export type HomeType = 'rental' | 'own'
 export type LoanMode = 'single' | 'pair'
 export type RateType = 'fixed' | 'variable' | ''
+export type RepaymentType = 'equal-principal-interest' | 'equal-principal' | ''
 
 export type RentalPlanData = {
   fee: number | null
@@ -17,6 +18,7 @@ export type OwnLoan = {
   amount: number | null
   period: number | null
   rateType: RateType
+  repaymentType: RepaymentType
   interestRate: number | null
 }
 
@@ -37,6 +39,7 @@ export type HomePlan = {
 type HomeStore = {
   plans: HomePlan[]
   draft: HomePlan
+  editingPlanId: number | null
   nextPlanId: number
 
   updateDraft: (value: Partial<HomePlan>) => void
@@ -44,7 +47,8 @@ type HomeStore = {
   updateDraftRental: (value: Partial<RentalPlanData>) => void
   updateDraftLoanMode: (mode: LoanMode) => void
   updateDraftLoan: (loanId: number, value: Partial<OwnLoan>) => void
-  addDraftPlan: () => void
+  saveDraftPlan: () => void
+  editPlan: (planId: number) => void
   deletePlan: (planId: number) => void
   resetDraft: () => void
 }
@@ -57,6 +61,7 @@ const createLoan = (id: number, name: string): OwnLoan => ({
   amount: null,
   period: null,
   rateType: '',
+  repaymentType: '',
   interestRate: null
 })
 
@@ -101,11 +106,27 @@ function sortPlans(plans: HomePlan[]) {
   })
 }
 
+function clonePlan(plan: HomePlan): HomePlan {
+  return {
+    ...plan,
+    rental: {
+      ...plan.rental
+    },
+    own: {
+      ...plan.own,
+      loans: plan.own.loans.map((loan) => ({
+        ...loan
+      }))
+    }
+  }
+}
+
 export const useHomeStore = create<HomeStore>()(
   persist(
     (set, get) => ({
       plans: [],
       draft: createDraft(0),
+      editingPlanId: null,
       nextPlanId: 1,
 
       updateDraft: (value) => {
@@ -169,27 +190,65 @@ export const useHomeStore = create<HomeStore>()(
         }))
       },
 
-      addDraftPlan: () => {
-        const { draft, nextPlanId } = get()
-        set((state) => ({
-          // 削除後に再追加しても順序が崩れないよう、開始年の古い順に保つ。
-          plans: sortPlans([...state.plans, draft]),
-          // 登録後は次の期間をすぐ入力できるよう、新しいドラフトを作り直す。
-          draft: createDraft(nextPlanId),
-          nextPlanId: nextPlanId + 1
-        }))
+      saveDraftPlan: () => {
+        const { draft, nextPlanId, editingPlanId } = get()
+
+        set((state) => {
+          if (editingPlanId !== null) {
+            return {
+              // 編集時は既存プランを差し替え、並び順も保つ。
+              plans: sortPlans(
+                state.plans.map((plan) => (plan.id === editingPlanId ? clonePlan(draft) : plan))
+              ),
+              draft: createDraft(nextPlanId),
+              editingPlanId: null
+            }
+          }
+
+          return {
+            // 新規追加時は開始年の古い順に保つ。
+            plans: sortPlans([...state.plans, clonePlan(draft)]),
+            // 登録後は次の期間をすぐ入力できるよう、新しいドラフトを作り直す。
+            draft: createDraft(nextPlanId),
+            editingPlanId: null,
+            nextPlanId: nextPlanId + 1
+          }
+        })
+      },
+
+      editPlan: (planId) => {
+        set((state) => {
+          const targetPlan = state.plans.find((plan) => plan.id === planId)
+
+          if (!targetPlan) {
+            return state
+          }
+
+          return {
+            editingPlanId: planId,
+            // 一覧の値をそのままフォームへ戻して編集できるようにする。
+            draft: clonePlan(targetPlan)
+          }
+        })
       },
 
       deletePlan: (planId) => {
         set((state) => ({
-          plans: state.plans.filter((plan) => plan.id !== planId)
+          plans: state.plans.filter((plan) => plan.id !== planId),
+          ...(state.editingPlanId === planId
+            ? {
+                draft: createDraft(state.nextPlanId),
+                editingPlanId: null
+              }
+            : {})
         }))
       },
 
       resetDraft: () => {
         const { nextPlanId } = get()
         set({
-          draft: createDraft(nextPlanId)
+          draft: createDraft(nextPlanId),
+          editingPlanId: null
         })
       }
     }),

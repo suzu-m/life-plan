@@ -8,7 +8,7 @@ import RadioGroup from '@mui/material/RadioGroup'
 import Select, { type SelectChangeEvent } from '@mui/material/Select'
 import Typography from '@mui/material/Typography'
 import NumberField from '@/components/common/NumberField'
-import type { LoanMode, OwnLoan, OwnPlanData, RateType } from '@/store/useHomeStore'
+import type { LoanMode, OwnLoan, OwnPlanData, RateType, RepaymentType } from '@/store/useHomeStore'
 
 type OwnCardProps = {
   value: OwnPlanData
@@ -101,6 +101,23 @@ export default function OwnCard({ value, onLoanModeChange, onLoanChange }: OwnCa
               >
                 <MenuItem value="fixed">固定金利</MenuItem>
                 <MenuItem value="variable">変動金利</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl sx={{ minWidth: 190 }}>
+              <InputLabel id={`repayment-type-label-${loan.id}`}>返済方式</InputLabel>
+              <Select
+                labelId={`repayment-type-label-${loan.id}`}
+                id={`repayment-type-${loan.id}`}
+                value={loan.repaymentType}
+                label="返済方式"
+                onChange={(e: SelectChangeEvent) =>
+                  onLoanChange(loan.id, {
+                    repaymentType: e.target.value as RepaymentType
+                  })
+                }
+              >
+                <MenuItem value="equal-principal-interest">元利均等返済</MenuItem>
+                <MenuItem value="equal-principal">元金均等返済</MenuItem>
               </Select>
             </FormControl>
             <NumberField

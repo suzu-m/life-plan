@@ -6,6 +6,7 @@ import './index.css'
 
 import Home from './app/Home.tsx'
 import Family from './app/Family.tsx'
+import Results from './app/Results.tsx'
 import ExpenseHome from './app/expense/Home.tsx'
 
 const router = createBrowserRouter([
@@ -32,6 +33,10 @@ const router = createBrowserRouter([
   {
     path: '/expense/other',
     element: <Family />
+  },
+  {
+    path: '/results',
+    element: <Results />
   }
 ])
 
