@@ -1,80 +1,131 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-type Person = {
+export type Person = {
   name: string
   age: number | null
-  relationship?: string
+  relationship: string
 }
 
 type FamilyStore = {
-  inputValue: Map<number, Person>
+  people: Map<number, Person>
+  draft: Person
+  editingPersonId: number | null
   nextId: number
 
-  createPerson: (value?: Person) => void
-  updatePerson: (key: number, value: Partial<Person>) => void
-  deletePerson: (key: number) => void
+  updateDraft: (value: Partial<Person>) => void
+  saveDraftPerson: () => void
+  editPerson: (personId: number) => void
+  deletePerson: (personId: number) => void
+  resetDraft: () => void
 }
 
-const init: Person = {
+const initPerson: Person = {
   name: '',
-  age: null
+  age: null,
+  relationship: ''
+}
+
+function clonePerson(person: Person): Person {
+  return {
+    ...person
+  }
 }
 
 export const useFamilyStore = create<FamilyStore>()(
   persist(
-    (set) => ({
-      inputValue: new Map([[0, init]]),
-      nextId: 1,
+    (set, get) => ({
+      people: new Map(),
+      draft: clonePerson(initPerson),
+      editingPersonId: null,
+      nextId: 0,
 
-      // CREATE
-      createPerson: (value = init) => {
+      updateDraft: (value) => {
+        set((state) => ({
+          draft: {
+            ...state.draft,
+            ...value
+          }
+        }))
+      },
+
+      saveDraftPerson: () => {
+        const { draft, editingPersonId, nextId } = get()
+
         set((state) => {
-          const newMap = new Map(state.inputValue)
-          newMap.set(state.nextId, value)
+          if (editingPersonId !== null) {
+            const nextPeople = new Map(state.people)
+            nextPeople.set(editingPersonId, clonePerson(draft))
+
+            return {
+              people: nextPeople,
+              draft: clonePerson(initPerson),
+              editingPersonId: null
+            }
+          }
+
+          const nextPeople = new Map(state.people)
+          nextPeople.set(nextId, clonePerson(draft))
 
           return {
-            inputValue: newMap,
-            nextId: state.nextId + 1
+            people: nextPeople,
+            draft: clonePerson(initPerson),
+            editingPersonId: null,
+            nextId: nextId + 1
           }
         })
       },
 
-      // UPDATE
-      updatePerson: (key, value) => {
+      editPerson: (personId) => {
         set((state) => {
-          const current = state.inputValue.get(key)
-          if (!current) return state
+          const person = state.people.get(personId)
 
-          const newMap = new Map(state.inputValue)
-          newMap.set(key, { ...current, ...value })
+          if (!person) {
+            return state
+          }
 
-          return { inputValue: newMap }
+          return {
+            draft: clonePerson(person),
+            editingPersonId: personId
+          }
         })
       },
 
-      // DELETE
-      deletePerson: (key) => {
+      deletePerson: (personId) => {
         set((state) => {
-          const newMap = new Map(state.inputValue)
-          newMap.delete(key)
+          const nextPeople = new Map(state.people)
+          nextPeople.delete(personId)
 
-          return { inputValue: newMap }
+          return {
+            people: nextPeople,
+            ...(state.editingPersonId === personId
+              ? {
+                  draft: clonePerson(initPerson),
+                  editingPersonId: null
+                }
+              : {})
+          }
+        })
+      },
+
+      resetDraft: () => {
+        set({
+          draft: clonePerson(initPerson),
+          editingPersonId: null
         })
       }
     }),
     {
       name: 'family-storage',
-
-      // Mapを保存できるようにする
       partialize: (state) => ({
-        inputValue: Array.from(state.inputValue.entries()),
+        people: Array.from(state.people.entries()),
+        draft: state.draft,
+        editingPersonId: state.editingPersonId,
         nextId: state.nextId
       }),
-
       onRehydrateStorage: () => (state) => {
         if (!state) return
-        state.inputValue = new Map(state.inputValue)
+        state.people = new Map(state.people)
       }
     }
   )

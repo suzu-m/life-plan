@@ -5,7 +5,6 @@ import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
 import Collapse from '@mui/material/Collapse'
 
-import WorkIcon from '@mui/icons-material/Work'
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar'
 import HomeIcon from '@mui/icons-material/Home'
 import ExpandLess from '@mui/icons-material/ExpandLess'
@@ -15,20 +14,14 @@ import FactCheckIcon from '@mui/icons-material/FactCheck'
 import WalletIcon from '@mui/icons-material/Wallet'
 import NightlifeIcon from '@mui/icons-material/Nightlife'
 import SavingsIcon from '@mui/icons-material/Savings'
-import InputIcon from '@mui/icons-material/Input'
+import ChildCareIcon from '@mui/icons-material/ChildCare'
 import OutputIcon from '@mui/icons-material/Output'
-import RealEstateAgentIcon from '@mui/icons-material/RealEstateAgent'
 
 export default function NestedList() {
   const [openIncome, setOpenIncome] = React.useState(true)
-  const [openExpenses, setOpenExpenses] = React.useState(true)
 
   const handleClickIncome = () => {
     setOpenIncome(!openIncome)
-  }
-
-  const handleClickExpenses = () => {
-    setOpenExpenses(!openExpenses)
   }
 
   return (
@@ -62,7 +55,15 @@ export default function NestedList() {
           </ListItemButton>
         </List>
         <List component="div" disablePadding>
-          <ListItemButton component="a" href="/family" sx={{ pl: 4 }}>
+          <ListItemButton component="a" href="/expense/child" sx={{ pl: 4 }}>
+            <ListItemIcon>
+              <ChildCareIcon />
+            </ListItemIcon>
+            <ListItemText primary="子供" />
+          </ListItemButton>
+        </List>
+        <List component="div" disablePadding>
+          <ListItemButton component="a" href="/expense/car" sx={{ pl: 4 }}>
             <ListItemIcon>
               <DirectionsCarIcon />
             </ListItemIcon>
@@ -70,7 +71,7 @@ export default function NestedList() {
           </ListItemButton>
         </List>
         <List component="div" disablePadding>
-          <ListItemButton component="a" href="/family" sx={{ pl: 4 }}>
+          <ListItemButton component="a" href="/expense/living" sx={{ pl: 4 }}>
             <ListItemIcon>
               <WalletIcon />
             </ListItemIcon>
@@ -78,7 +79,7 @@ export default function NestedList() {
           </ListItemButton>
         </List>
         <List component="div" disablePadding>
-          <ListItemButton component="a" href="/family" sx={{ pl: 4 }}>
+          <ListItemButton component="a" href="/expense/other" sx={{ pl: 4 }}>
             <ListItemIcon>
               <NightlifeIcon />
             </ListItemIcon>
@@ -87,35 +88,12 @@ export default function NestedList() {
         </List>
       </Collapse>
 
-      <ListItemButton onClick={handleClickExpenses}>
+      <ListItemButton component="a" href="/income">
         <ListItemIcon>
-          <InputIcon />
+          <SavingsIcon />
         </ListItemIcon>
         <ListItemText primary="収入" />
-        {openExpenses ? <ExpandLess /> : <ExpandMore />}
       </ListItemButton>
-      <Collapse in={openExpenses} timeout="auto" unmountOnExit>
-        <List component="div" disablePadding>
-          <ListItemButton component="a" href="/family" sx={{ pl: 4 }}>
-            <ListItemIcon>
-              <SavingsIcon />
-            </ListItemIcon>
-            <ListItemText primary="貯金" />
-          </ListItemButton>
-          <ListItemButton component="a" href="/family" sx={{ pl: 4 }}>
-            <ListItemIcon>
-              <WorkIcon />
-            </ListItemIcon>
-            <ListItemText primary="給与" />
-          </ListItemButton>
-          <ListItemButton component="a" href="/family" sx={{ pl: 4 }}>
-            <ListItemIcon>
-              <RealEstateAgentIcon />
-            </ListItemIcon>
-            <ListItemText primary="その他" />
-          </ListItemButton>
-        </List>
-      </Collapse>
 
       <ListItemButton component="a" href="/results">
         <ListItemIcon>

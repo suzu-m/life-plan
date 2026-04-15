@@ -38,7 +38,7 @@ function formatPeriod(plan: HomePlan) {
   return '期間未設定'
 }
 
-export default function Home() {
+export default function ExpenseHome() {
   const {
     plans,
     draft,

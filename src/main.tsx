@@ -6,8 +6,13 @@ import './index.css'
 
 import Home from './app/Home.tsx'
 import Family from './app/Family.tsx'
-import Results from './app/Results.tsx'
 import ExpenseHome from './app/expense/Home.tsx'
+import ExpenseChild from './app/expense/Child.tsx'
+import ExpenseCar from './app/expense/Car.tsx'
+import ExpenseLiving from './app/expense/Living.tsx'
+import ExpenseOther from './app/expense/Other.tsx'
+import Income from './app/Income.tsx'
+import Results from './app/Results.tsx'
 
 const router = createBrowserRouter([
   {
@@ -23,16 +28,24 @@ const router = createBrowserRouter([
     element: <ExpenseHome />
   },
   {
+    path: '/expense/child',
+    element: <ExpenseChild />
+  },
+  {
     path: '/expense/car',
-    element: <Family />
+    element: <ExpenseCar />
   },
   {
     path: '/expense/living',
-    element: <Family />
+    element: <ExpenseLiving />
   },
   {
     path: '/expense/other',
-    element: <Family />
+    element: <ExpenseOther />
+  },
+  {
+    path: '/income',
+    element: <Income />
   },
   {
     path: '/results',
