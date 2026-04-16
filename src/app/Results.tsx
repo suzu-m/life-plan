@@ -6,14 +6,17 @@ import Typography from '@mui/material/Typography'
 import { BarChart } from '@mui/x-charts/BarChart'
 import Navi from '@/components/common/Navi'
 import { useHomeStore, type HomePlan, type OwnLoan, type RepaymentType } from '@/store/useHomeStore'
+import { useFamilyStore, type Person } from '@/store/useFamilyStore'
+import { useChildStore, type ChildExpensePlan } from '@/store/useChildStore'
 
-type HousingChartDatum = {
+type SimulationChartDatum = {
   year: number
   rentalBase: number
   rentalRenewal: number
   ownSingle: number
   ownMain: number
   ownPartner: number
+  childExpense: number
   total: number
 }
 
@@ -22,7 +25,61 @@ const COLORS = {
   rentalRenewal: '#ff9f6e',
   ownSingle: '#3bb273',
   ownMain: '#2d7ff9',
-  ownPartner: '#8e63ff'
+  ownPartner: '#8e63ff',
+  childExpense: '#f94144'
+}
+
+const CURRENT_YEAR = new Date().getFullYear()
+
+function calculateChildExpenseForYear(child: Person, plan: ChildExpensePlan, year: number): number {
+  if (child.age === null) return 0
+
+  const birthYear = CURRENT_YEAR - child.age
+  const ageInYear = year - birthYear
+
+  let totalMan = 0
+
+  plan.lifeEvents.forEach((event) => {
+    if (event.age === ageInYear) {
+      totalMan += event.amount ?? 0
+    }
+  })
+
+  if (ageInYear >= 0 && ageInYear <= 5) {
+    if (plan.earlyEducationType === 'nursery' && ageInYear >= (plan.earlyEducationStartAge ?? 0)) {
+      if (ageInYear <= 2) {
+        totalMan += plan.nurseryTuitionAmountUnder3 ?? 0
+      } else {
+        totalMan += plan.nurseryTuitionAmountOver3 ?? 0
+      }
+      totalMan += plan.earlyEducationLessonsAmount ?? 0
+    } else if (
+      plan.earlyEducationType === 'kindergarten' &&
+      ageInYear >= (plan.earlyEducationStartAge ?? 3)
+    ) {
+      totalMan += plan.earlyEducationTuitionAmount ?? 0
+      totalMan += plan.earlyEducationLessonsAmount ?? 0
+    }
+  } else if (ageInYear >= 6 && ageInYear <= 11) {
+    totalMan += plan.elementaryTuitionAmount ?? 0
+    totalMan += plan.elementaryLessonsAmount ?? 0
+  } else if (ageInYear >= 12 && ageInYear <= 14) {
+    totalMan += plan.juniorHighTuitionAmount ?? 0
+    totalMan += plan.juniorHighLessonsAmount ?? 0
+  } else if (ageInYear >= 15 && ageInYear <= 17) {
+    totalMan += plan.highSchoolTuitionAmount ?? 0
+    totalMan += plan.highSchoolLessonsAmount ?? 0
+  } else if (ageInYear >= 18) {
+    if (plan.higherEducationType !== 'none') {
+      const duration = plan.higherEducationDuration ?? 0
+      if (duration > 0 && ageInYear < 18 + duration) {
+        totalMan += plan.higherEducationTuitionAmount ?? 0
+        totalMan += plan.higherEducationLessonsAmount ?? 0
+      }
+    }
+  }
+
+  return totalMan * 10_000
 }
 
 function formatCurrency(amount: number) {
@@ -98,32 +155,72 @@ function calculateOwnLoanYearlyCost(
   return 0
 }
 
-function buildHousingChartData(plans: HomePlan[]) {
-  const years = plans
+function buildSimulationChartData(
+  homePlans: HomePlan[],
+  people: Map<number, Person>,
+  childPlans: Map<number, ChildExpensePlan>
+) {
+  const homeYears = homePlans
     .flatMap((plan) => [plan.fromYear, plan.toYear])
     .filter((year): year is number => year !== null)
 
-  if (years.length === 0) {
+  const childYears: number[] = []
+
+  people.forEach((person, id) => {
+    if (person.relationship === 'child' && person.age !== null) {
+      const plan = childPlans.get(id)
+      if (!plan) return
+
+      const birthYear = CURRENT_YEAR - person.age
+
+      let maxAge = plan.higherEducationType !== 'none'
+        ? 18 + Math.max(0, plan.higherEducationDuration ?? 0) - 1
+        : 17
+
+      plan.lifeEvents.forEach((e) => {
+        if (e.age !== null && e.age > maxAge) {
+          maxAge = e.age
+        }
+      })
+
+      const startAgesArray = plan.lifeEvents.map((e) => e.age ?? 0)
+      if (plan.earlyEducationStartAge !== null) {
+        startAgesArray.push(plan.earlyEducationStartAge)
+      } else {
+        startAgesArray.push(0)
+      }
+      
+      const startAge = Math.min(...startAgesArray, 0)
+
+      childYears.push(birthYear + startAge)
+      childYears.push(birthYear + maxAge)
+    }
+  })
+
+  const allYears = [...homeYears, ...childYears]
+
+  if (allYears.length === 0) {
     return []
   }
 
-  const startYear = Math.min(...years)
-  const endYear = Math.max(...years)
+  const startYear = Math.min(CURRENT_YEAR, ...allYears)
+  const endYear = Math.max(CURRENT_YEAR, ...allYears)
 
   return Array.from({ length: endYear - startYear + 1 }, (_, offset) => {
     const year = startYear + offset
 
-    const datum: HousingChartDatum = {
+    const datum: SimulationChartDatum = {
       year,
       rentalBase: 0,
       rentalRenewal: 0,
       ownSingle: 0,
       ownMain: 0,
       ownPartner: 0,
+      childExpense: 0,
       total: 0
     }
 
-    plans.forEach((plan) => {
+    homePlans.forEach((plan) => {
       if (plan.fromYear === null || plan.toYear === null) {
         return
       }
@@ -168,20 +265,33 @@ function buildHousingChartData(plans: HomePlan[]) {
       )
     })
 
+    people.forEach((person, id) => {
+      if (person.relationship === 'child') {
+        const plan = childPlans.get(id)
+        if (plan) {
+          datum.childExpense += calculateChildExpenseForYear(person, plan, year)
+        }
+      }
+    })
+
     datum.total =
       datum.rentalBase +
       datum.rentalRenewal +
       datum.ownSingle +
       datum.ownMain +
-      datum.ownPartner
+      datum.ownPartner +
+      datum.childExpense
 
     return datum
   })
 }
 
 export default function Results() {
-  const { plans } = useHomeStore()
-  const dataset = buildHousingChartData(plans)
+  const { plans: homePlans } = useHomeStore()
+  const { people } = useFamilyStore()
+  const { plans: childPlans } = useChildStore()
+
+  const dataset = buildSimulationChartData(homePlans, people, childPlans)
 
   return (
     <Box sx={{ width: '100%', display: 'flex' }}>
@@ -197,14 +307,14 @@ export default function Results() {
           結果
         </Typography>
         <Typography color="text.secondary" sx={{ marginBottom: 3 }}>
-          住宅費の入力データから、年ごとの支出を MUI Charts で表示しています。
+          入力されたデータから、シミュレーション結果（年ごとの支出）を MUI Charts で表示しています。
         </Typography>
 
         <Card>
           <CardContent>
             {dataset.length === 0 ? (
               <Typography color="text.secondary">
-                住宅費データを追加すると、年ごとの支出グラフが表示されます。
+                家族や住宅費等のデータを追加すると、年ごとの支出グラフが表示されます。
               </Typography>
             ) : (
               <Stack spacing={3}>
@@ -259,6 +369,13 @@ export default function Results() {
                       label: 'ペアローン: 配偶者',
                       stack: 'housing',
                       color: COLORS.ownPartner,
+                      valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
+                    },
+                    {
+                      dataKey: 'childExpense',
+                      label: '子供費用',
+                      stack: 'housing',
+                      color: COLORS.childExpense,
                       valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
                     }
                   ]}

@@ -3,12 +3,9 @@ import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import FormControl from '@mui/material/FormControl'
-import FormControlLabel from '@mui/material/FormControlLabel'
 import IconButton from '@mui/material/IconButton'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
-import Radio from '@mui/material/Radio'
-import RadioGroup from '@mui/material/RadioGroup'
 import Select, { type SelectChangeEvent } from '@mui/material/Select'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
@@ -37,10 +34,21 @@ function createDefaultPlan(): ChildExpensePlan {
     juniorHighSchoolType: 'public',
     highSchoolType: 'public',
     higherEducationType: 'none',
-    universityType: '',
-    universityMajorType: '',
+    higherEducationDuration: null,
     lifeEvents: [],
-    nextLifeEventId: 0
+    nextLifeEventId: 0,
+    elementaryLessonsAmount: null,
+    juniorHighLessonsAmount: null,
+    highSchoolLessonsAmount: null,
+    elementaryTuitionAmount: null,
+    juniorHighTuitionAmount: null,
+    highSchoolTuitionAmount: null,
+    earlyEducationTuitionAmount: null,
+    nurseryTuitionAmountUnder3: null,
+    nurseryTuitionAmountOver3: null,
+    earlyEducationLessonsAmount: null,
+    higherEducationTuitionAmount: null,
+    higherEducationLessonsAmount: null
   }
 }
 
@@ -81,17 +89,6 @@ function ChildSchoolSelect({
       </Select>
     </FormControl>
   )
-}
-
-function formatEarlyEducationLabel(value: EarlyEducationType) {
-  switch (value) {
-    case 'nursery':
-      return '保育園'
-    case 'kindergarten':
-      return '幼稚園'
-    default:
-      return '入れない'
-  }
 }
 
 export default function ExpenseChild() {
@@ -147,123 +144,243 @@ export default function ExpenseChild() {
                       </Box>
 
                       {/* 幼少期の進路は保育園か幼稚園のどちらかを選ぶ前提で保持する。 */}
-                      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                        <Box sx={{ minWidth: 320 }}>
-                          <FormControl>
-                            <Typography variant="subtitle1" sx={{ marginBottom: 1 }}>
-                              保育園・幼稚園
-                            </Typography>
-                            <RadioGroup
-                              row
+                      <Stack spacing={3} sx={{ marginBottom: 1 }}>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <Typography sx={{ width: 80, fontWeight: 'bold' }}>幼少期</Typography>
+                          <FormControl sx={{ minWidth: 160 }}>
+                            <InputLabel>進学先</InputLabel>
+                            <Select
+                              label="進学先"
                               value={plan.earlyEducationType}
-                              onChange={(e) =>
+                              onChange={(e: SelectChangeEvent) =>
                                 updatePlan(personId, {
                                   earlyEducationType: e.target.value as EarlyEducationType,
                                   earlyEducationStartAge:
-                                    e.target.value === 'none' ? null : plan.earlyEducationStartAge
+                                    e.target.value === 'none' ? null : (plan.earlyEducationStartAge ?? 0)
                                 })
                               }
                             >
-                              <FormControlLabel value="none" control={<Radio />} label="入れない" />
-                              <FormControlLabel value="nursery" control={<Radio />} label="保育園" />
-                              <FormControlLabel value="kindergarten" control={<Radio />} label="幼稚園" />
-                            </RadioGroup>
+                              <MenuItem value="none">入れない</MenuItem>
+                              <MenuItem value="nursery">保育園</MenuItem>
+                              <MenuItem value="kindergarten">幼稚園</MenuItem>
+                            </Select>
                           </FormControl>
-                          {plan.earlyEducationType !== 'none' ? (
-                            <NumberField
-                              label={`${formatEarlyEducationLabel(plan.earlyEducationType)}の開始年齢`}
-                              value={plan.earlyEducationStartAge ?? 0}
-                              min={0}
-                              onValueChange={(value) =>
-                                updatePlan(personId, {
-                                  earlyEducationStartAge: value === null ? null : Number(value)
-                                })
-                              }
-                            />
-                          ) : (
-                            <Typography variant="body2" color="text.secondary">
-                              入れる場合だけ開始年齢を設定します。
-                            </Typography>
+                          {plan.earlyEducationType !== 'none' && (
+                            <>
+                              <NumberField
+                                label="開始年齢"
+                                value={plan.earlyEducationStartAge ?? 0}
+                                min={0}
+                                width={160}
+                                onValueChange={(value) =>
+                                  updatePlan(personId, {
+                                    earlyEducationStartAge: value === null ? null : Number(value)
+                                  })
+                                }
+                              />
+                              {plan.earlyEducationType === 'kindergarten' && (
+                                <NumberField
+                                  label="学費（年額/万円）"
+                                  value={plan.earlyEducationTuitionAmount ?? 0}
+                                  min={0}
+                                  onValueChange={(value) =>
+                                    updatePlan(personId, {
+                                      earlyEducationTuitionAmount: value === null ? null : Number(value)
+                                    })
+                                  }
+                                />
+                              )}
+                              {plan.earlyEducationType === 'nursery' && (
+                                <>
+                                  <NumberField
+                                    label="0〜2歳 学費（年額/万円）"
+                                    value={plan.nurseryTuitionAmountUnder3 ?? 0}
+                                    min={0}
+                                    onValueChange={(value) =>
+                                      updatePlan(personId, {
+                                        nurseryTuitionAmountUnder3: value === null ? null : Number(value)
+                                      })
+                                    }
+                                  />
+                                  <NumberField
+                                    label="3〜5歳 学費（年額/万円）"
+                                    value={plan.nurseryTuitionAmountOver3 ?? 0}
+                                    min={0}
+                                    onValueChange={(value) =>
+                                      updatePlan(personId, {
+                                        nurseryTuitionAmountOver3: value === null ? null : Number(value)
+                                      })
+                                    }
+                                  />
+                                </>
+                              )}
+                              <NumberField
+                                label="習い事（年額/万円）"
+                                value={plan.earlyEducationLessonsAmount ?? 0}
+                                min={0}
+                                width={200}
+                                onValueChange={(value) =>
+                                  updatePlan(personId, {
+                                    earlyEducationLessonsAmount: value === null ? null : Number(value)
+                                  })
+                                }
+                              />
+                            </>
                           )}
                         </Box>
-                      </Box>
+                      </Stack>
 
-                      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                        <ChildSchoolSelect
-                          label="小学校"
-                          value={plan.elementarySchoolType}
-                          onChange={(value) => updatePlan(personId, { elementarySchoolType: value })}
-                        />
-                        <ChildSchoolSelect
-                          label="中学校"
-                          value={plan.juniorHighSchoolType}
-                          onChange={(value) => updatePlan(personId, { juniorHighSchoolType: value })}
-                        />
-                        <ChildSchoolSelect
-                          label="高校"
-                          value={plan.highSchoolType}
-                          onChange={(value) => updatePlan(personId, { highSchoolType: value })}
-                        />
-                      </Box>
-
-                      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                        <FormControl sx={{ minWidth: 200 }}>
-                          <InputLabel>高等教育</InputLabel>
-                          <Select
-                            value={plan.higherEducationType}
-                            label="高等教育"
-                            onChange={(e: SelectChangeEvent) =>
+                      <Stack spacing={3}>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <Typography sx={{ width: 80, fontWeight: 'bold' }}>小学校</Typography>
+                          <ChildSchoolSelect
+                            label="進学先"
+                            value={plan.elementarySchoolType}
+                            onChange={(value) => updatePlan(personId, { elementarySchoolType: value })}
+                          />
+                          <NumberField
+                            label="学費（年額/万円）"
+                            value={plan.elementaryTuitionAmount ?? 0}
+                            min={0}
+                            onValueChange={(value) =>
                               updatePlan(personId, {
-                                higherEducationType: e.target.value as ChildExpensePlan['higherEducationType'],
-                                universityType: e.target.value === 'university' ? plan.universityType : '',
-                                universityMajorType: e.target.value === 'university' ? plan.universityMajorType : ''
+                                elementaryTuitionAmount: value === null ? null : Number(value)
                               })
                             }
-                          >
-                            <MenuItem value="none">進学しない</MenuItem>
-                            <MenuItem value="university">大学</MenuItem>
-                            <MenuItem value="juniorCollege">短大</MenuItem>
-                            <MenuItem value="vocational">専門</MenuItem>
-                          </Select>
-                        </FormControl>
+                          />
+                          <NumberField
+                            label="習い事（年額/万円）"
+                            value={plan.elementaryLessonsAmount ?? 0}
+                            min={0}
+                            width={200}
+                            onValueChange={(value) =>
+                              updatePlan(personId, {
+                                elementaryLessonsAmount: value === null ? null : Number(value)
+                              })
+                            }
+                          />
+                        </Box>
 
-                        {plan.higherEducationType === 'university' && (
-                          <>
-                            <FormControl sx={{ minWidth: 180 }}>
-                              <InputLabel>大学区分</InputLabel>
-                              <Select
-                                value={plan.universityType}
-                                label="大学区分"
-                                onChange={(e: SelectChangeEvent) =>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <Typography sx={{ width: 80, fontWeight: 'bold' }}>中学校</Typography>
+                          <ChildSchoolSelect
+                            label="進学先"
+                            value={plan.juniorHighSchoolType}
+                            onChange={(value) => updatePlan(personId, { juniorHighSchoolType: value })}
+                          />
+                          <NumberField
+                            label="学費（年額/万円）"
+                            value={plan.juniorHighTuitionAmount ?? 0}
+                            min={0}
+                            onValueChange={(value) =>
+                              updatePlan(personId, {
+                                juniorHighTuitionAmount: value === null ? null : Number(value)
+                              })
+                            }
+                          />
+                          <NumberField
+                            label="習い事（年額/万円）"
+                            value={plan.juniorHighLessonsAmount ?? 0}
+                            min={0}
+                            width={200}
+                            onValueChange={(value) =>
+                              updatePlan(personId, {
+                                juniorHighLessonsAmount: value === null ? null : Number(value)
+                              })
+                            }
+                          />
+                        </Box>
+
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <Typography sx={{ width: 80, fontWeight: 'bold' }}>高校</Typography>
+                          <ChildSchoolSelect
+                            label="進学先"
+                            value={plan.highSchoolType}
+                            onChange={(value) => updatePlan(personId, { highSchoolType: value })}
+                          />
+                          <NumberField
+                            label="学費（年額/万円）"
+                            value={plan.highSchoolTuitionAmount ?? 0}
+                            min={0}
+                            onValueChange={(value) =>
+                              updatePlan(personId, {
+                                highSchoolTuitionAmount: value === null ? null : Number(value)
+                              })
+                            }
+                          />
+                          <NumberField
+                            label="習い事（年額/万円）"
+                            value={plan.highSchoolLessonsAmount ?? 0}
+                            min={0}
+                            width={200}
+                            onValueChange={(value) =>
+                              updatePlan(personId, {
+                                highSchoolLessonsAmount: value === null ? null : Number(value)
+                              })
+                            }
+                          />
+                        </Box>
+                      </Stack>
+
+                      <Stack spacing={3} sx={{ marginTop: 3, marginBottom: 4 }}>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <Typography sx={{ width: 80, fontWeight: 'bold' }}>高等教育</Typography>
+                          <FormControl sx={{ minWidth: 160 }}>
+                            <InputLabel>進学先</InputLabel>
+                            <Select
+                              value={plan.higherEducationType}
+                              label="進学先"
+                              onChange={(e: SelectChangeEvent) =>
+                                updatePlan(personId, {
+                                  higherEducationType: e.target.value as ChildExpensePlan['higherEducationType']
+                                })
+                              }
+                            >
+                              <MenuItem value="none">進学しない</MenuItem>
+                              <MenuItem value="university">大学</MenuItem>
+                              <MenuItem value="juniorCollege">短大</MenuItem>
+                              <MenuItem value="vocational">専門</MenuItem>
+                            </Select>
+                          </FormControl>
+
+                          {plan.higherEducationType !== 'none' && (
+                            <>
+                              <NumberField
+                                label="期間（年）"
+                                value={plan.higherEducationDuration ?? 0}
+                                min={0}
+                                width={120}
+                                onValueChange={(value) =>
                                   updatePlan(personId, {
-                                    universityType: e.target.value as ChildExpensePlan['universityType']
+                                    higherEducationDuration: value === null ? null : Number(value)
                                   })
                                 }
-                              >
-                                <MenuItem value="national-public">国公立</MenuItem>
-                                <MenuItem value="private">私立</MenuItem>
-                              </Select>
-                            </FormControl>
-
-                            <FormControl sx={{ minWidth: 160 }}>
-                              <InputLabel>文理</InputLabel>
-                              <Select
-                                value={plan.universityMajorType}
-                                label="文理"
-                                onChange={(e: SelectChangeEvent) =>
+                              />
+                              <NumberField
+                                label="学費（年額/万円）"
+                                value={plan.higherEducationTuitionAmount ?? 0}
+                                min={0}
+                                onValueChange={(value) =>
                                   updatePlan(personId, {
-                                    universityMajorType: e.target.value as ChildExpensePlan['universityMajorType']
+                                    higherEducationTuitionAmount: value === null ? null : Number(value)
                                   })
                                 }
-                              >
-                                <MenuItem value="liberalArts">文系</MenuItem>
-                                <MenuItem value="science">理系</MenuItem>
-                                <MenuItem value="medical">医薬</MenuItem>
-                              </Select>
-                            </FormControl>
-                          </>
-                        )}
-                      </Box>
+                              />
+                              <NumberField
+                                label="習い事（年額/万円）"
+                                value={plan.higherEducationLessonsAmount ?? 0}
+                                min={0}
+                                width={200}
+                                onValueChange={(value) =>
+                                  updatePlan(personId, {
+                                    higherEducationLessonsAmount: value === null ? null : Number(value)
+                                  })
+                                }
+                              />
+                            </>
+                          )}
+                        </Box>
+                      </Stack>
 
                       <Box>
                         <Typography variant="subtitle1" sx={{ marginBottom: 1 }}>

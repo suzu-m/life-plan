@@ -21,10 +21,21 @@ export type ChildExpensePlan = {
   juniorHighSchoolType: SchoolType
   highSchoolType: SchoolType
   higherEducationType: HigherEducationType
-  universityType: UniversityType
-  universityMajorType: UniversityMajorType
+  higherEducationDuration: number | null
   lifeEvents: ChildLifeEvent[]
   nextLifeEventId: number
+  elementaryLessonsAmount: number | null
+  juniorHighLessonsAmount: number | null
+  highSchoolLessonsAmount: number | null
+  elementaryTuitionAmount: number | null
+  juniorHighTuitionAmount: number | null
+  highSchoolTuitionAmount: number | null
+  earlyEducationTuitionAmount: number | null
+  nurseryTuitionAmountUnder3: number | null
+  nurseryTuitionAmountOver3: number | null
+  earlyEducationLessonsAmount: number | null
+  higherEducationTuitionAmount: number | null
+  higherEducationLessonsAmount: number | null
 }
 
 type ChildStore = {
@@ -43,10 +54,21 @@ function createDefaultPlan(): ChildExpensePlan {
     juniorHighSchoolType: 'public',
     highSchoolType: 'public',
     higherEducationType: 'none',
-    universityType: '',
-    universityMajorType: '',
+    higherEducationDuration: null,
     lifeEvents: [],
-    nextLifeEventId: 0
+    nextLifeEventId: 0,
+    elementaryLessonsAmount: null,
+    juniorHighLessonsAmount: null,
+    highSchoolLessonsAmount: null,
+    elementaryTuitionAmount: null,
+    juniorHighTuitionAmount: null,
+    highSchoolTuitionAmount: null,
+    earlyEducationTuitionAmount: null,
+    nurseryTuitionAmountUnder3: null,
+    nurseryTuitionAmountOver3: null,
+    earlyEducationLessonsAmount: null,
+    higherEducationTuitionAmount: null,
+    higherEducationLessonsAmount: null
   }
 }
 
