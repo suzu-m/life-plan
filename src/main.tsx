@@ -2,7 +2,7 @@ import { createBrowserRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
+import { ThemeProvider, createTheme } from '@mui/material/styles'
 
 import Home from './app/Home.tsx'
 import Family from './app/Family.tsx'
@@ -13,6 +13,19 @@ import ExpenseLiving from './app/expense/Living.tsx'
 import ExpenseOther from './app/expense/Other.tsx'
 import Income from './app/Income.tsx'
 import Results from './app/Results.tsx'
+const theme = createTheme({
+  // spacing: 4,
+  typography: {
+    fontFamily: `"Noto Sans JP", system-ui, "Segoe UI", Roboto, sans-serif`
+  },
+  components: {
+    MuiTextField: {
+      styleOverrides: {
+        root: {}
+      }
+    }
+  }
+})
 
 const router = createBrowserRouter([
   {
@@ -55,6 +68,8 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <ThemeProvider theme={theme}>
+      <RouterProvider router={router} />
+    </ThemeProvider>
   </StrictMode>
 )
