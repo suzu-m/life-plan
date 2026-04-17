@@ -48,6 +48,7 @@ export default function ExpenseHome() {
     updateDraftRental,
     updateDraftLoanMode,
     updateDraftLoan,
+    updateDraftOwnDetails,
     saveDraftPlan,
     editPlan,
     deletePlan,
@@ -102,6 +103,18 @@ export default function ExpenseHome() {
             <CardContent>
               <Stack spacing={3}>
                 {/* 期間と住居タイプを先に決めてから、下の詳細入力を出し分ける。 */}
+                <Box>
+                  <FormControl>
+                    <RadioGroup
+                      row
+                      value={draft.type}
+                      onChange={(e) => updateDraftType(e.target.value as HomePlan['type'])}
+                    >
+                      <FormControlLabel value="rental" control={<Radio />} label="賃貸" />
+                      <FormControlLabel value="own" control={<Radio />} label="持ち家" />
+                    </RadioGroup>
+                  </FormControl>
+                </Box>
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
                   <NumberField
                     label="開始年"
@@ -124,22 +137,17 @@ export default function ExpenseHome() {
                       })
                     }}
                   />
-                  <FormControl>
-                    <RadioGroup
-                      row
-                      value={draft.type}
-                      onChange={(e) => updateDraftType(e.target.value as HomePlan['type'])}
-                    >
-                      <FormControlLabel value="rental" control={<Radio />} label="賃貸" />
-                      <FormControlLabel value="own" control={<Radio />} label="持ち家" />
-                    </RadioGroup>
-                  </FormControl>
                 </Box>
 
                 {draft.type === 'rental' ? (
                   <RentalCard value={draft.rental} onChange={updateDraftRental} />
                 ) : (
-                  <OwnCard value={draft.own} onLoanModeChange={updateDraftLoanMode} onLoanChange={updateDraftLoan} />
+                  <OwnCard
+                    value={draft.own}
+                    onLoanModeChange={updateDraftLoanMode}
+                    onLoanChange={updateDraftLoan}
+                    onOwnDetailsChange={updateDraftOwnDetails}
+                  />
                 )}
 
                 <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
@@ -174,6 +182,17 @@ export default function ExpenseHome() {
                         <Typography>持ち家</Typography>
                       </Box>
                       <Typography>{plan.own.loanMode === 'pair' ? 'ペアローン' : '単身ローン'}</Typography>
+                      {plan.own.buildingType === 'mansion' && (
+                        <Typography sx={{ mt: 0.5, mb: 1 }} variant="body2" color="text.secondary">
+                          マンション: 管理費 {formatCurrency(plan.own.managementFee)}万円/月 / 修繕積立金{' '}
+                          {formatCurrency(plan.own.repairReserveFee)}万円/月
+                        </Typography>
+                      )}
+                      {plan.own.buildingType === 'house' && (
+                        <Typography sx={{ mt: 0.5, mb: 1 }} variant="body2" color="text.secondary">
+                          戸建: 修繕積立 {formatCurrency(plan.own.houseRepairReserveFee)}万円/月
+                        </Typography>
+                      )}
                       <Box>
                         {plan.own.loans.map((loan) => {
                           const amount = formatCurrency(loan.amount)

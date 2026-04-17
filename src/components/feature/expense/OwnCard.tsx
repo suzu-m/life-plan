@@ -8,12 +8,13 @@ import RadioGroup from '@mui/material/RadioGroup'
 import Select, { type SelectChangeEvent } from '@mui/material/Select'
 import Typography from '@mui/material/Typography'
 import NumberField from '@/components/common/NumberField'
-import type { LoanMode, OwnLoan, OwnPlanData, RateType, RepaymentType } from '@/store/useHomeStore'
+import type { LoanMode, OwnLoan, OwnPlanData, RateType, RepaymentType, BuildingType } from '@/store/useHomeStore'
 
 type OwnCardProps = {
   value: OwnPlanData
   onLoanModeChange: (mode: LoanMode) => void
   onLoanChange: (loanId: number, value: Partial<OwnLoan>) => void
+  onOwnDetailsChange: (value: Partial<OwnPlanData>) => void
 }
 
 const LOAN_AMOUNT_UNIT = 10_000
@@ -23,9 +24,53 @@ function formatAmount(amount: number | null) {
   return `${amount.toLocaleString()}円`
 }
 
-export default function OwnCard({ value, onLoanModeChange, onLoanChange }: OwnCardProps) {
+export default function OwnCard({ value, onLoanModeChange, onLoanChange, onOwnDetailsChange }: OwnCardProps) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <FormControl>
+        <Typography variant="subtitle2" sx={{ marginBottom: 1 }}>
+          建物種別
+        </Typography>
+        <RadioGroup row value={value.buildingType} onChange={(e) => onOwnDetailsChange({ buildingType: e.target.value as BuildingType })}>
+          <FormControlLabel value="mansion" control={<Radio />} label="マンション" />
+          <FormControlLabel value="house" control={<Radio />} label="戸建" />
+        </RadioGroup>
+      </FormControl>
+
+      {value.buildingType === 'mansion' && (
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <NumberField
+            label="管理費（万円/月）"
+            value={value.managementFee ?? 0}
+            min={0}
+            step={0.1}
+            onValueChange={(nextValue) => onOwnDetailsChange({ managementFee: nextValue === null ? null : Number(nextValue) })}
+            helperText="月額を入力"
+          />
+          <NumberField
+            label="修繕積立金（万円/月）"
+            value={value.repairReserveFee ?? 0}
+            min={0}
+            step={0.1}
+            onValueChange={(nextValue) => onOwnDetailsChange({ repairReserveFee: nextValue === null ? null : Number(nextValue) })}
+            helperText="月額を入力"
+          />
+        </Box>
+      )}
+
+      {value.buildingType === 'house' && (
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <NumberField
+            label="修繕に向けた積み立て（万円/月）"
+            value={value.houseRepairReserveFee ?? 0}
+            min={0}
+            step={0.1}
+            onValueChange={(nextValue) => onOwnDetailsChange({ houseRepairReserveFee: nextValue === null ? null : Number(nextValue) })}
+            helperText="月額を入力"
+          />
+        </Box>
+      )}
+
       <FormControl>
         <Typography variant="subtitle2" sx={{ marginBottom: 1 }}>
           ローン種別

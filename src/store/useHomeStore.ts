@@ -5,6 +5,7 @@ export type HomeType = 'rental' | 'own'
 export type LoanMode = 'single' | 'pair'
 export type RateType = 'fixed' | 'variable' | ''
 export type RepaymentType = 'equal-principal-interest' | 'equal-principal' | ''
+export type BuildingType = 'mansion' | 'house' | ''
 
 export type RentalPlanData = {
   fee: number | null
@@ -25,6 +26,10 @@ export type OwnLoan = {
 export type OwnPlanData = {
   loanMode: LoanMode
   loans: OwnLoan[]
+  buildingType: BuildingType
+  managementFee: number | null
+  repairReserveFee: number | null
+  houseRepairReserveFee: number | null
 }
 
 export type HomePlan = {
@@ -46,6 +51,7 @@ type HomeStore = {
   updateDraftType: (type: HomeType) => void
   updateDraftRental: (value: Partial<RentalPlanData>) => void
   updateDraftLoanMode: (mode: LoanMode) => void
+  updateDraftOwnDetails: (value: Partial<OwnPlanData>) => void
   updateDraftLoan: (loanId: number, value: Partial<OwnLoan>) => void
   saveDraftPlan: () => void
   editPlan: (planId: number) => void
@@ -81,7 +87,11 @@ const createDraft = (id: number): HomePlan => {
     },
     own: {
       loanMode: 'single',
-      loans: [createLoan(0, 'ローン1')]
+      loans: [createLoan(0, 'ローン1')],
+      buildingType: '',
+      managementFee: null,
+      repairReserveFee: null,
+      houseRepairReserveFee: null
     }
   }
 }
@@ -153,6 +163,18 @@ export const useHomeStore = create<HomeStore>()(
             ...state.draft,
             rental: {
               ...state.draft.rental,
+              ...value
+            }
+          }
+        }))
+      },
+
+      updateDraftOwnDetails: (value) => {
+        set((state) => ({
+          draft: {
+            ...state.draft,
+            own: {
+              ...state.draft.own,
               ...value
             }
           }

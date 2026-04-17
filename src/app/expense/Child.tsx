@@ -14,12 +14,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import Navi from '@/components/common/Navi'
 import NumberField from '@/components/common/NumberField'
 import { useFamilyStore } from '@/store/useFamilyStore'
-import {
-  useChildStore,
-  type ChildExpensePlan,
-  type EarlyEducationType,
-  type SchoolType
-} from '@/store/useChildStore'
+import { useChildStore, type ChildExpensePlan, type EarlyEducationType, type SchoolType } from '@/store/useChildStore'
 
 const SCHOOL_OPTIONS: Array<{ value: SchoolType; label: string }> = [
   { value: 'public', label: '公立' },
@@ -48,7 +43,12 @@ function createDefaultPlan(): ChildExpensePlan {
     nurseryTuitionAmountOver3: null,
     earlyEducationLessonsAmount: null,
     higherEducationTuitionAmount: null,
-    higherEducationLessonsAmount: null
+    higherEducationLessonsAmount: null,
+
+    // お小遣い
+    elementaryAllowanceAmount: 0,
+    juniorHighAllowanceAmount: 0,
+    highSchoolAllowanceAmount: 0
   }
 }
 
@@ -76,11 +76,7 @@ function ChildSchoolSelect({
   return (
     <FormControl sx={{ minWidth: 160 }}>
       <InputLabel>{label}</InputLabel>
-      <Select
-        value={value}
-        label={label}
-        onChange={(e: SelectChangeEvent) => onChange(e.target.value as SchoolType)}
-      >
+      <Select value={value} label={label} onChange={(e: SelectChangeEvent) => onChange(e.target.value as SchoolType)}>
         {SCHOOL_OPTIONS.map((option) => (
           <MenuItem key={option.value} value={option.value}>
             {option.label}
@@ -259,6 +255,17 @@ export default function ExpenseChild() {
                               })
                             }
                           />
+                          <NumberField
+                            label="お小遣い（年額/万円）"
+                            value={plan.elementaryAllowanceAmount ?? 0}
+                            min={0}
+                            width={200}
+                            onValueChange={(value) =>
+                              updatePlan(personId, {
+                                elementaryAllowanceAmount: value === null ? null : Number(value)
+                              })
+                            }
+                          />
                         </Box>
 
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -289,6 +296,17 @@ export default function ExpenseChild() {
                               })
                             }
                           />
+                          <NumberField
+                            label="お小遣い（年額/万円）"
+                            value={plan.juniorHighAllowanceAmount ?? 0}
+                            min={0}
+                            width={200}
+                            onValueChange={(value) =>
+                              updatePlan(personId, {
+                                juniorHighAllowanceAmount: value === null ? null : Number(value)
+                              })
+                            }
+                          />
                         </Box>
 
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -316,6 +334,17 @@ export default function ExpenseChild() {
                             onValueChange={(value) =>
                               updatePlan(personId, {
                                 highSchoolLessonsAmount: value === null ? null : Number(value)
+                              })
+                            }
+                          />
+                          <NumberField
+                            label="お小遣い（年額/万円）"
+                            value={plan.highSchoolAllowanceAmount ?? 0}
+                            min={0}
+                            width={200}
+                            onValueChange={(value) =>
+                              updatePlan(personId, {
+                                highSchoolAllowanceAmount: value === null ? null : Number(value)
                               })
                             }
                           />

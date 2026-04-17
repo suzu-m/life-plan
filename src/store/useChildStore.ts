@@ -25,8 +25,11 @@ export type ChildExpensePlan = {
   lifeEvents: ChildLifeEvent[]
   nextLifeEventId: number
   elementaryLessonsAmount: number | null
+  elementaryAllowanceAmount: number | null
   juniorHighLessonsAmount: number | null
+  juniorHighAllowanceAmount: number | null
   highSchoolLessonsAmount: number | null
+  highSchoolAllowanceAmount: number | null
   elementaryTuitionAmount: number | null
   juniorHighTuitionAmount: number | null
   highSchoolTuitionAmount: number | null
@@ -58,8 +61,11 @@ function createDefaultPlan(): ChildExpensePlan {
     lifeEvents: [],
     nextLifeEventId: 0,
     elementaryLessonsAmount: null,
+    elementaryAllowanceAmount: null,
     juniorHighLessonsAmount: null,
+    juniorHighAllowanceAmount: null,
     highSchoolLessonsAmount: null,
+    highSchoolAllowanceAmount: null,
     elementaryTuitionAmount: null,
     juniorHighTuitionAmount: null,
     highSchoolTuitionAmount: null,

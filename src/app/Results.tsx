@@ -8,6 +8,8 @@ import Navi from '@/components/common/Navi'
 import { useHomeStore, type HomePlan, type OwnLoan, type RepaymentType } from '@/store/useHomeStore'
 import { useFamilyStore, type Person } from '@/store/useFamilyStore'
 import { useChildStore, type ChildExpensePlan } from '@/store/useChildStore'
+import { useCarStore, type CarPlan } from '@/store/useCarStore'
+import { useLivingStore, type LivingPlan } from '@/store/useLivingStore'
 
 type SimulationChartDatum = {
   year: number
@@ -16,7 +18,10 @@ type SimulationChartDatum = {
   ownSingle: number
   ownMain: number
   ownPartner: number
+  homeMaintenance: number
   childExpense: number
+  carExpense: number
+  livingExpense: number
   total: number
 }
 
@@ -26,7 +31,10 @@ const COLORS = {
   ownSingle: '#3bb273',
   ownMain: '#2d7ff9',
   ownPartner: '#8e63ff',
-  childExpense: '#f94144'
+  homeMaintenance: '#eb5e28',
+  childExpense: '#f94144',
+  carExpense: '#ffb703',
+  livingExpense: '#2a9d8f'
 }
 
 const CURRENT_YEAR = new Date().getFullYear()
@@ -53,28 +61,75 @@ function calculateChildExpenseForYear(child: Person, plan: ChildExpensePlan, yea
         totalMan += plan.nurseryTuitionAmountOver3 ?? 0
       }
       totalMan += plan.earlyEducationLessonsAmount ?? 0
-    } else if (
-      plan.earlyEducationType === 'kindergarten' &&
-      ageInYear >= (plan.earlyEducationStartAge ?? 3)
-    ) {
+    } else if (plan.earlyEducationType === 'kindergarten' && ageInYear >= (plan.earlyEducationStartAge ?? 3)) {
       totalMan += plan.earlyEducationTuitionAmount ?? 0
       totalMan += plan.earlyEducationLessonsAmount ?? 0
     }
   } else if (ageInYear >= 6 && ageInYear <= 11) {
     totalMan += plan.elementaryTuitionAmount ?? 0
     totalMan += plan.elementaryLessonsAmount ?? 0
+    totalMan += plan.elementaryAllowanceAmount ?? 0
   } else if (ageInYear >= 12 && ageInYear <= 14) {
     totalMan += plan.juniorHighTuitionAmount ?? 0
     totalMan += plan.juniorHighLessonsAmount ?? 0
+    totalMan += plan.juniorHighAllowanceAmount ?? 0
   } else if (ageInYear >= 15 && ageInYear <= 17) {
     totalMan += plan.highSchoolTuitionAmount ?? 0
     totalMan += plan.highSchoolLessonsAmount ?? 0
+    totalMan += plan.highSchoolAllowanceAmount ?? 0
   } else if (ageInYear >= 18) {
     if (plan.higherEducationType !== 'none') {
       const duration = plan.higherEducationDuration ?? 0
       if (duration > 0 && ageInYear < 18 + duration) {
         totalMan += plan.higherEducationTuitionAmount ?? 0
         totalMan += plan.higherEducationLessonsAmount ?? 0
+      }
+    }
+  }
+
+  return totalMan * 10_000
+}
+
+function calculateCarExpenseForYear(car: CarPlan, year: number): number {
+  if (car.purchaseYear === null) return 0
+
+  const elapsedYears = year - car.purchaseYear
+  if (elapsedYears < 0) return 0
+
+  let totalMan = 0
+
+  totalMan += car.taxYearlyAmount ?? 0
+  totalMan += car.maintenanceYearlyAmount ?? 0
+
+  if ((car.loanPayments ?? 0) > 0 && (car.loanMonthlyAmount ?? 0) > 0) {
+    const totalPayments = car.loanPayments ?? 0
+    const remainingPaymentsAtStart = totalPayments - elapsedYears * 12
+    if (remainingPaymentsAtStart > 0) {
+      const paymentsThisYear = Math.min(12, remainingPaymentsAtStart)
+      totalMan += paymentsThisYear * (car.loanMonthlyAmount ?? 0)
+    }
+  }
+
+  if ((car.zankureFinalAmount ?? 0) > 0) {
+    const totalPayments = car.loanPayments ?? 0
+    if (totalPayments > 0) {
+      const finalPaymentYear = car.purchaseYear + Math.floor((totalPayments - 1) / 12)
+      if (year === finalPaymentYear) {
+        totalMan += car.zankureFinalAmount ?? 0
+      }
+    } else if (year === car.purchaseYear) {
+      totalMan += car.zankureFinalAmount ?? 0
+    }
+  }
+
+  if (elapsedYears > 0 && (car.shakenAmount ?? 0) > 0) {
+    if (car.isNewCar) {
+      if (elapsedYears >= 3 && (elapsedYears - 3) % 2 === 0) {
+        totalMan += car.shakenAmount ?? 0
+      }
+    } else {
+      if (elapsedYears % 2 === 0) {
+        totalMan += car.shakenAmount ?? 0
       }
     }
   }
@@ -110,11 +165,7 @@ function calculateMonthlyPayment(amount: number, monthlyRate: number, totalMonth
   return (amount * monthlyRate * ratePower) / (ratePower - 1)
 }
 
-function calculateOwnLoanYearlyCost(
-  loan: OwnLoan,
-  elapsedYears: number,
-  repaymentType: RepaymentType
-) {
+function calculateOwnLoanYearlyCost(loan: OwnLoan, elapsedYears: number, repaymentType: RepaymentType) {
   const amount = loan.amount ?? 0
   const interestRate = loan.interestRate ?? 0
   const period = loan.period ?? 0
@@ -158,7 +209,9 @@ function calculateOwnLoanYearlyCost(
 function buildSimulationChartData(
   homePlans: HomePlan[],
   people: Map<number, Person>,
-  childPlans: Map<number, ChildExpensePlan>
+  childPlans: Map<number, ChildExpensePlan>,
+  carPlans: Map<number, CarPlan>,
+  livingPlan: LivingPlan
 ) {
   const homeYears = homePlans
     .flatMap((plan) => [plan.fromYear, plan.toYear])
@@ -173,9 +226,7 @@ function buildSimulationChartData(
 
       const birthYear = CURRENT_YEAR - person.age
 
-      let maxAge = plan.higherEducationType !== 'none'
-        ? 18 + Math.max(0, plan.higherEducationDuration ?? 0) - 1
-        : 17
+      let maxAge = plan.higherEducationType !== 'none' ? 18 + Math.max(0, plan.higherEducationDuration ?? 0) - 1 : 17
 
       plan.lifeEvents.forEach((e) => {
         if (e.age !== null && e.age > maxAge) {
@@ -189,7 +240,7 @@ function buildSimulationChartData(
       } else {
         startAgesArray.push(0)
       }
-      
+
       const startAge = Math.min(...startAgesArray, 0)
 
       childYears.push(birthYear + startAge)
@@ -197,7 +248,17 @@ function buildSimulationChartData(
     }
   })
 
-  const allYears = [...homeYears, ...childYears]
+  const carYears: number[] = []
+  carPlans.forEach((car) => {
+    if (car.purchaseYear !== null) {
+      carYears.push(car.purchaseYear)
+      if ((car.loanPayments ?? 0) > 0) {
+        carYears.push(car.purchaseYear + Math.floor(((car.loanPayments ?? 0) - 1) / 12))
+      }
+    }
+  })
+
+  const allYears = [...homeYears, ...childYears, ...carYears]
 
   if (allYears.length === 0) {
     return []
@@ -216,7 +277,10 @@ function buildSimulationChartData(
       ownSingle: 0,
       ownMain: 0,
       ownPartner: 0,
+      homeMaintenance: 0,
       childExpense: 0,
+      carExpense: 0,
+      livingExpense: 0,
       total: 0
     }
 
@@ -243,6 +307,14 @@ function buildSimulationChartData(
       }
 
       const elapsedYears = year - plan.fromYear
+
+      let yearlyMaintenance = 0
+      if (plan.own.buildingType === 'mansion') {
+        yearlyMaintenance += ((plan.own.managementFee ?? 0) + (plan.own.repairReserveFee ?? 0)) * 12
+      } else if (plan.own.buildingType === 'house') {
+        yearlyMaintenance += (plan.own.houseRepairReserveFee ?? 0) * 12
+      }
+      datum.homeMaintenance += yearlyMaintenance * 10_000
 
       if (plan.own.loanMode === 'pair') {
         datum.ownMain += calculateOwnLoanYearlyCost(
@@ -274,13 +346,33 @@ function buildSimulationChartData(
       }
     })
 
+    carPlans.forEach((car) => {
+      datum.carExpense += calculateCarExpenseForYear(car, year)
+    })
+
+    const monthlyLiving =
+      (livingPlan.foodMonthlyAmount ?? 0) +
+      (livingPlan.utilitiesMonthlyAmount ?? 0) +
+      (livingPlan.telecomMonthlyAmount ?? 0) +
+      (livingPlan.insuranceMonthlyAmount ?? 0) +
+      (livingPlan.hobbiesMonthlyAmount ?? 0) +
+      (livingPlan.otherMonthlyAmount ?? 0) +
+      (livingPlan.allowanceMainMonthlyAmount ?? 0) +
+      (livingPlan.allowancePartnerMonthlyAmount ?? 0)
+
+    // 生活費は毎年一律（設定額×12ヶ月×10000円）加算する
+    datum.livingExpense = monthlyLiving * 12 * 10000
+
     datum.total =
       datum.rentalBase +
       datum.rentalRenewal +
       datum.ownSingle +
       datum.ownMain +
       datum.ownPartner +
-      datum.childExpense
+      datum.homeMaintenance +
+      datum.childExpense +
+      datum.carExpense +
+      datum.livingExpense
 
     return datum
   })
@@ -290,8 +382,10 @@ export default function Results() {
   const { plans: homePlans } = useHomeStore()
   const { people } = useFamilyStore()
   const { plans: childPlans } = useChildStore()
+  const { cars: carPlans } = useCarStore()
+  const { plan: livingPlan } = useLivingStore()
 
-  const dataset = buildSimulationChartData(homePlans, people, childPlans)
+  const dataset = buildSimulationChartData(homePlans, people, childPlans, carPlans, livingPlan)
 
   return (
     <Box sx={{ width: '100%', display: 'flex' }}>
@@ -307,7 +401,7 @@ export default function Results() {
           結果
         </Typography>
         <Typography color="text.secondary" sx={{ marginBottom: 3 }}>
-          入力されたデータから、シミュレーション結果（年ごとの支出）を MUI Charts で表示しています。
+          入力されたデータから、シミュレーション結果（年ごとの支出）を表示しています。
         </Typography>
 
         <Card>
@@ -321,12 +415,13 @@ export default function Results() {
                 <BarChart
                   dataset={dataset}
                   height={420}
-                  margin={{ top: 24, right: 24, bottom: 48, left: 72 }}
+                  margin={{ top: 24, right: 24, bottom: 64, left: 72 }}
                   xAxis={[
                     {
                       dataKey: 'year',
                       scaleType: 'band',
-                      label: '年'
+                      valueFormatter: (value) => `${value}年`,
+                      tickLabelStyle: { angle: 45, textAnchor: 'start', fontSize: 12 }
                     }
                   ]}
                   yAxis={[
@@ -372,10 +467,31 @@ export default function Results() {
                       valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
                     },
                     {
+                      dataKey: 'homeMaintenance',
+                      label: '持ち家: 維持修繕',
+                      stack: 'housing',
+                      color: COLORS.homeMaintenance,
+                      valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
+                    },
+                    {
                       dataKey: 'childExpense',
                       label: '子供費用',
                       stack: 'housing',
                       color: COLORS.childExpense,
+                      valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
+                    },
+                    {
+                      dataKey: 'carExpense',
+                      label: '車費用',
+                      stack: 'housing',
+                      color: COLORS.carExpense,
+                      valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
+                    },
+                    {
+                      dataKey: 'livingExpense',
+                      label: '基本生活費',
+                      stack: 'housing',
+                      color: COLORS.livingExpense,
                       valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
                     }
                   ]}
