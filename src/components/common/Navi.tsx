@@ -83,7 +83,7 @@ export default function NestedList() {
             <ListItemIcon>
               <NightlifeIcon />
             </ListItemIcon>
-            <ListItemText primary="趣味" />
+            <ListItemText primary="その他" />
           </ListItemButton>
         </List>
       </Collapse>

@@ -3,13 +3,18 @@ import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
+import Tabs from '@mui/material/Tabs'
+import Tab from '@mui/material/Tab'
 import { BarChart } from '@mui/x-charts/BarChart'
+import { LineChart } from '@mui/x-charts/LineChart'
 import Navi from '@/components/common/Navi'
 import { useHomeStore, type HomePlan, type OwnLoan, type RepaymentType } from '@/store/useHomeStore'
 import { useFamilyStore, type Person } from '@/store/useFamilyStore'
 import { useChildStore, type ChildExpensePlan } from '@/store/useChildStore'
 import { useCarStore, type CarPlan } from '@/store/useCarStore'
 import { useLivingStore, type LivingPlan } from '@/store/useLivingStore'
+import { useIncomeStore, type MemberIncome, type Assets } from '@/store/useIncomeStore'
+import React from 'react'
 
 type SimulationChartDatum = {
   year: number
@@ -22,254 +27,176 @@ type SimulationChartDatum = {
   childExpense: number
   carExpense: number
   livingExpense: number
+  income: number
+  balance: number
   total: number
 }
 
 const COLORS = {
-  rentalBase: '#7c8cff',
-  rentalRenewal: '#ff9f6e',
-  ownSingle: '#3bb273',
-  ownMain: '#2d7ff9',
-  ownPartner: '#8e63ff',
-  homeMaintenance: '#eb5e28',
-  childExpense: '#f94144',
-  carExpense: '#ffb703',
-  livingExpense: '#2a9d8f'
+  rentalBase: '#3a86ff',
+  rentalRenewal: '#fb5607',
+  ownSingle: '#2a9d8f',
+  ownMain: '#264653',
+  ownPartner: '#e9c46a',
+  homeMaintenance: '#f4a261',
+  childExpense: '#51e7e7ff',
+  carExpense: '#8338ec',
+  livingExpense: '#38b000',
+  income: '#38b000',
+  balance: '#2179bcff'
 }
 
 const CURRENT_YEAR = new Date().getFullYear()
 
-function calculateChildExpenseForYear(child: Person, plan: ChildExpensePlan, year: number): number {
+/**
+ * 子どもの教育費を年度ごとに計算する
+ */
+const calculateChildExpenseForYear = (child: Person, plan: ChildExpensePlan, year: number): number => {
   if (child.age === null) return 0
-
   const birthYear = CURRENT_YEAR - child.age
   const ageInYear = year - birthYear
-
   let totalMan = 0
-
   plan.lifeEvents.forEach((event) => {
-    if (event.age === ageInYear) {
-      totalMan += event.amount ?? 0
-    }
+    if (event.age === ageInYear) totalMan += event.amount ?? 0
   })
-
   if (ageInYear >= 0 && ageInYear <= 5) {
     if (plan.earlyEducationType === 'nursery' && ageInYear >= (plan.earlyEducationStartAge ?? 0)) {
-      if (ageInYear <= 2) {
-        totalMan += plan.nurseryTuitionAmountUnder3 ?? 0
-      } else {
-        totalMan += plan.nurseryTuitionAmountOver3 ?? 0
-      }
+      totalMan += ageInYear <= 2 ? (plan.nurseryTuitionAmountUnder3 ?? 0) : (plan.nurseryTuitionAmountOver3 ?? 0)
       totalMan += plan.earlyEducationLessonsAmount ?? 0
     } else if (plan.earlyEducationType === 'kindergarten' && ageInYear >= (plan.earlyEducationStartAge ?? 3)) {
       totalMan += plan.earlyEducationTuitionAmount ?? 0
       totalMan += plan.earlyEducationLessonsAmount ?? 0
     }
   } else if (ageInYear >= 6 && ageInYear <= 11) {
-    totalMan += plan.elementaryTuitionAmount ?? 0
-    totalMan += plan.elementaryLessonsAmount ?? 0
-    totalMan += plan.elementaryAllowanceAmount ?? 0
+    totalMan +=
+      (plan.elementaryTuitionAmount ?? 0) + (plan.elementaryLessonsAmount ?? 0) + (plan.elementaryAllowanceAmount ?? 0)
   } else if (ageInYear >= 12 && ageInYear <= 14) {
-    totalMan += plan.juniorHighTuitionAmount ?? 0
-    totalMan += plan.juniorHighLessonsAmount ?? 0
-    totalMan += plan.juniorHighAllowanceAmount ?? 0
+    totalMan +=
+      (plan.juniorHighTuitionAmount ?? 0) + (plan.juniorHighLessonsAmount ?? 0) + (plan.juniorHighAllowanceAmount ?? 0)
   } else if (ageInYear >= 15 && ageInYear <= 17) {
-    totalMan += plan.highSchoolTuitionAmount ?? 0
-    totalMan += plan.highSchoolLessonsAmount ?? 0
-    totalMan += plan.highSchoolAllowanceAmount ?? 0
+    totalMan +=
+      (plan.highSchoolTuitionAmount ?? 0) + (plan.highSchoolLessonsAmount ?? 0) + (plan.highSchoolAllowanceAmount ?? 0)
   } else if (ageInYear >= 18) {
     if (plan.higherEducationType !== 'none') {
       const duration = plan.higherEducationDuration ?? 0
       if (duration > 0 && ageInYear < 18 + duration) {
-        totalMan += plan.higherEducationTuitionAmount ?? 0
-        totalMan += plan.higherEducationLessonsAmount ?? 0
+        totalMan += (plan.higherEducationTuitionAmount ?? 0) + (plan.higherEducationLessonsAmount ?? 0)
       }
     }
   }
-
   return totalMan * 10_000
 }
 
-function calculateCarExpenseForYear(car: CarPlan, year: number): number {
+/**
+ * 車の費用を年度ごとに計算する
+ */
+const calculateCarExpenseForYear = (car: CarPlan, year: number): number => {
   if (car.purchaseYear === null) return 0
-
   const elapsedYears = year - car.purchaseYear
   if (elapsedYears < 0) return 0
-
-  let totalMan = 0
-
-  totalMan += car.taxYearlyAmount ?? 0
-  totalMan += car.maintenanceYearlyAmount ?? 0
-
+  let totalMan = (car.taxYearlyAmount ?? 0) + (car.maintenanceYearlyAmount ?? 0)
   if ((car.loanPayments ?? 0) > 0 && (car.loanMonthlyAmount ?? 0) > 0) {
-    const totalPayments = car.loanPayments ?? 0
-    const remainingPaymentsAtStart = totalPayments - elapsedYears * 12
-    if (remainingPaymentsAtStart > 0) {
-      const paymentsThisYear = Math.min(12, remainingPaymentsAtStart)
-      totalMan += paymentsThisYear * (car.loanMonthlyAmount ?? 0)
-    }
+    const remainingPayments = (car.loanPayments ?? 0) - elapsedYears * 12
+    if (remainingPayments > 0) totalMan += Math.min(12, remainingPayments) * (car.loanMonthlyAmount ?? 0)
   }
-
   if ((car.zankureFinalAmount ?? 0) > 0) {
-    const totalPayments = car.loanPayments ?? 0
-    if (totalPayments > 0) {
-      const finalPaymentYear = car.purchaseYear + Math.floor((totalPayments - 1) / 12)
-      if (year === finalPaymentYear) {
-        totalMan += car.zankureFinalAmount ?? 0
-      }
-    } else if (year === car.purchaseYear) {
-      totalMan += car.zankureFinalAmount ?? 0
-    }
+    const finalPaymentYear = car.purchaseYear + Math.floor(((car.loanPayments ?? 0) - 1) / 12)
+    if (year === finalPaymentYear) totalMan += car.zankureFinalAmount ?? 0
   }
-
   if (elapsedYears > 0 && (car.shakenAmount ?? 0) > 0) {
-    if (car.isNewCar) {
-      if (elapsedYears >= 3 && (elapsedYears - 3) % 2 === 0) {
-        totalMan += car.shakenAmount ?? 0
-      }
-    } else {
-      if (elapsedYears % 2 === 0) {
-        totalMan += car.shakenAmount ?? 0
-      }
-    }
+    const isShakenYear = car.isNewCar ? elapsedYears >= 3 && (elapsedYears - 3) % 2 === 0 : elapsedYears % 2 === 0
+    if (isShakenYear) totalMan += car.shakenAmount ?? 0
   }
-
   return totalMan * 10_000
 }
 
-function formatCurrency(amount: number) {
-  return amount.toLocaleString()
-}
-
-function formatMan(amount: number) {
-  return (amount / 10_000).toLocaleString(undefined, {
-    maximumFractionDigits: 1
-  })
-}
-
-function isRenewalYear(year: number, fromYear: number, renewalFrequency: number | null) {
-  if (!renewalFrequency || renewalFrequency <= 0) {
-    return false
+/**
+ * 収入（給与）を年度ごとに計算する
+ */
+const calculateMemberSalaryForYear = (person: Person, incomeData: MemberIncome, year: number): number => {
+  if (person.age === null) return 0
+  const birthYear = CURRENT_YEAR - person.age
+  const ageInYear = year - birthYear
+  if (incomeData.occupation === 'employee') {
+    return ageInYear < (incomeData.retirementAge ?? 60) ? (incomeData.annualSalary ?? 0) : 0
   }
-
-  // 2年契約なら2年目、4年目...の年に更新料を載せる。
-  return year !== fromYear && (year - fromYear + 1) % renewalFrequency === 0
+  return ageInYear < (incomeData.retirementAge ?? 70) ? (incomeData.annualSalary ?? 0) : 0
 }
 
-function calculateMonthlyPayment(amount: number, monthlyRate: number, totalMonths: number) {
-  if (monthlyRate === 0) {
-    return amount / totalMonths
+/**
+ * 退職金を年度ごとに計算する
+ */
+const calculateMemberRetirementAllowanceForYear = (person: Person, incomeData: MemberIncome, year: number): number => {
+  if (person.age === null) return 0
+  const birthYear = CURRENT_YEAR - person.age
+  const ageInYear = year - birthYear
+  if (incomeData.occupation === 'employee' && ageInYear === (incomeData.retirementAge ?? 60)) {
+    return incomeData.retirementAllowance ?? 0
   }
+  return 0
+}
 
+const formatCurrency = (amount: number) => amount.toLocaleString()
+const formatMan = (amount: number) => (amount / 10_000).toLocaleString(undefined, { maximumFractionDigits: 1 })
+
+const isRenewalYear = (year: number, fromYear: number, frequency: number | null) =>
+  !!frequency && frequency > 0 && year !== fromYear && (year - fromYear + 1) % frequency === 0
+
+const calculateMonthlyPayment = (amount: number, monthlyRate: number, totalMonths: number) => {
+  if (monthlyRate === 0) return amount / totalMonths
   const ratePower = (1 + monthlyRate) ** totalMonths
   return (amount * monthlyRate * ratePower) / (ratePower - 1)
 }
 
-function calculateOwnLoanYearlyCost(loan: OwnLoan, elapsedYears: number, repaymentType: RepaymentType) {
+const calculateOwnLoanYearlyCost = (loan: OwnLoan, elapsedYears: number, repaymentType: RepaymentType) => {
   const amount = loan.amount ?? 0
-  const interestRate = loan.interestRate ?? 0
   const period = loan.period ?? 0
-
-  if (amount <= 0 || period <= 0 || elapsedYears < 0 || elapsedYears >= period) {
-    return 0
-  }
-
-  const monthlyRate = interestRate / 100 / 12
+  if (amount <= 0 || period <= 0 || elapsedYears < 0 || elapsedYears >= period) return 0
+  const monthlyRate = (loan.interestRate ?? 0) / 100 / 12
   const totalMonths = period * 12
-  const elapsedMonths = elapsedYears * 12
-
-  if (repaymentType === 'equal-principal-interest') {
-    // 元利均等返済は毎月返済額を固定して、その年の12か月分を年額にする。
+  if (repaymentType === 'equal-principal-interest')
     return calculateMonthlyPayment(amount, monthlyRate, totalMonths) * 12
+  const monthlyPrincipal = amount / totalMonths
+  let yearlyTotal = 0
+  for (let month = 0; month < 12; month++) {
+    const remainingBalance = amount - monthlyPrincipal * (elapsedYears * 12 + month)
+    yearlyTotal += monthlyPrincipal + remainingBalance * monthlyRate
   }
-
-  if (repaymentType === 'equal-principal') {
-    // 元金均等返済は毎月の元金を固定し、残債に応じて利息が減っていく。
-    const monthlyPrincipal = amount / totalMonths
-    let yearlyTotal = 0
-
-    for (let month = 0; month < 12; month += 1) {
-      const paidMonths = elapsedMonths + month
-
-      if (paidMonths >= totalMonths) {
-        break
-      }
-
-      const remainingPrincipal = amount - monthlyPrincipal * paidMonths
-      const monthlyInterest = remainingPrincipal * monthlyRate
-      yearlyTotal += monthlyPrincipal + monthlyInterest
-    }
-
-    return yearlyTotal
-  }
-
-  return 0
+  return yearlyTotal
 }
 
-function buildSimulationChartData(
+/**
+ * シミュレーションの期間を取得
+ */
+const getSimulationRange = (homePlans: HomePlan[], people: Map<number, Person>) => {
+  const years = homePlans.flatMap((p) => [p.fromYear, p.toYear]).filter((y): y is number => y !== null)
+  const myself = Array.from(people.values()).find((p) => p.relationship === 'myself')
+  const endYear = myself && myself.age !== null ? CURRENT_YEAR + (90 - myself.age) : CURRENT_YEAR + 50
+  return { startYear: Math.min(CURRENT_YEAR, ...years), endYear }
+}
+
+/**
+ * シミュレーションデータを構築
+ */
+const buildSimulationData = (
   homePlans: HomePlan[],
   people: Map<number, Person>,
   childPlans: Map<number, ChildExpensePlan>,
   carPlans: Map<number, CarPlan>,
-  livingPlan: LivingPlan
-) {
-  const homeYears = homePlans
-    .flatMap((plan) => [plan.fromYear, plan.toYear])
-    .filter((year): year is number => year !== null)
-
-  const childYears: number[] = []
-
-  people.forEach((person, id) => {
-    if (person.relationship === 'child' && person.age !== null) {
-      const plan = childPlans.get(id)
-      if (!plan) return
-
-      const birthYear = CURRENT_YEAR - person.age
-
-      let maxAge = plan.higherEducationType !== 'none' ? 18 + Math.max(0, plan.higherEducationDuration ?? 0) - 1 : 17
-
-      plan.lifeEvents.forEach((e) => {
-        if (e.age !== null && e.age > maxAge) {
-          maxAge = e.age
-        }
-      })
-
-      const startAgesArray = plan.lifeEvents.map((e) => e.age ?? 0)
-      if (plan.earlyEducationStartAge !== null) {
-        startAgesArray.push(plan.earlyEducationStartAge)
-      } else {
-        startAgesArray.push(0)
-      }
-
-      const startAge = Math.min(...startAgesArray, 0)
-
-      childYears.push(birthYear + startAge)
-      childYears.push(birthYear + maxAge)
-    }
-  })
-
-  const carYears: number[] = []
-  carPlans.forEach((car) => {
-    if (car.purchaseYear !== null) {
-      carYears.push(car.purchaseYear)
-      if ((car.loanPayments ?? 0) > 0) {
-        carYears.push(car.purchaseYear + Math.floor(((car.loanPayments ?? 0) - 1) / 12))
-      }
-    }
-  })
-
-  const allYears = [...homeYears, ...childYears, ...carYears]
-
-  if (allYears.length === 0) {
-    return []
-  }
-
-  const startYear = Math.min(CURRENT_YEAR, ...allYears)
-  const endYear = Math.max(CURRENT_YEAR, ...allYears)
+  livingPlan: LivingPlan,
+  incomeData: { main: MemberIncome; partner: MemberIncome; assets: Assets; passiveIncome: number | null }
+): SimulationChartDatum[] => {
+  const { startYear, endYear } = getSimulationRange(homePlans, people)
+  let currentBalance =
+    (incomeData.assets.bankSavings ?? 0) +
+    (incomeData.assets.nisa ?? 0) +
+    (incomeData.assets.ideco ?? 0) +
+    (incomeData.assets.otherInvestments ?? 0)
+  const mainPerson = Array.from(people.values()).find((p) => p.relationship === 'myself')
+  const partnerPerson = Array.from(people.values()).find((p) => p.relationship === 'spouse')
 
   return Array.from({ length: endYear - startYear + 1 }, (_, offset) => {
     const year = startYear + offset
-
     const datum: SimulationChartDatum = {
       year,
       rentalBase: 0,
@@ -281,68 +208,47 @@ function buildSimulationChartData(
       childExpense: 0,
       carExpense: 0,
       livingExpense: 0,
+      income: 0,
+      balance: 0,
       total: 0
     }
 
     homePlans.forEach((plan) => {
-      if (plan.fromYear === null || plan.toYear === null) {
-        return
-      }
-
-      if (year < plan.fromYear || year > plan.toYear) {
-        return
-      }
-
+      if (!plan.fromYear || !plan.toYear || year < plan.fromYear || year > plan.toYear) return
       if (plan.type === 'rental') {
-        const monthlyFee = plan.rental.fee ?? 0
-        const renewalFee = plan.rental.renewalFee ?? 0
-
-        datum.rentalBase += monthlyFee * 12
-
-        if (isRenewalYear(year, plan.fromYear, plan.rental.renewalFrequency)) {
-          datum.rentalRenewal += renewalFee
+        datum.rentalBase += (plan.rental.fee ?? 0) * 12
+        if (isRenewalYear(year, plan.fromYear, plan.rental.renewalFrequency))
+          datum.rentalRenewal += plan.rental.renewalFee ?? 0
+      } else {
+        const elapsed = year - plan.fromYear
+        if (plan.own.loanMode === 'single')
+          datum.ownSingle += calculateOwnLoanYearlyCost(
+            plan.own.loans[0],
+            elapsed,
+            plan.own.loans[0]?.repaymentType ?? 'equal-principal-interest'
+          )
+        else {
+          datum.ownMain += calculateOwnLoanYearlyCost(
+            plan.own.loans[0],
+            elapsed,
+            plan.own.loans[0]?.repaymentType ?? 'equal-principal-interest'
+          )
+          datum.ownPartner += calculateOwnLoanYearlyCost(
+            plan.own.loans[1],
+            elapsed,
+            plan.own.loans[1]?.repaymentType ?? 'equal-principal-interest'
+          )
         }
-
-        return
+        const monthlyMaintenance =
+          (plan.own.managementFee ?? 0) + (plan.own.repairReserveFee ?? 0) + (plan.own.houseRepairReserveFee ?? 0)
+        datum.homeMaintenance += monthlyMaintenance * 12 * 10_000
       }
-
-      const elapsedYears = year - plan.fromYear
-
-      let yearlyMaintenance = 0
-      if (plan.own.buildingType === 'mansion') {
-        yearlyMaintenance += ((plan.own.managementFee ?? 0) + (plan.own.repairReserveFee ?? 0)) * 12
-      } else if (plan.own.buildingType === 'house') {
-        yearlyMaintenance += (plan.own.houseRepairReserveFee ?? 0) * 12
-      }
-      datum.homeMaintenance += yearlyMaintenance * 10_000
-
-      if (plan.own.loanMode === 'pair') {
-        datum.ownMain += calculateOwnLoanYearlyCost(
-          plan.own.loans[0],
-          elapsedYears,
-          plan.own.loans[0]?.repaymentType ?? ''
-        )
-        datum.ownPartner += calculateOwnLoanYearlyCost(
-          plan.own.loans[1],
-          elapsedYears,
-          plan.own.loans[1]?.repaymentType ?? ''
-        )
-        return
-      }
-
-      datum.ownSingle += calculateOwnLoanYearlyCost(
-        plan.own.loans[0],
-        elapsedYears,
-        plan.own.loans[0]?.repaymentType ?? ''
-      )
     })
 
-    people.forEach((person, id) => {
-      if (person.relationship === 'child') {
+    people.forEach((p, id) => {
+      if (p.relationship === 'child') {
         const plan = childPlans.get(id)
-        if (plan) {
-          datum.childExpense += calculateChildExpenseForYear(person, plan, year)
-        }
+        if (plan) datum.childExpense += calculateChildExpenseForYear(p, plan, year)
       }
     })
 
@@ -359,9 +265,7 @@ function buildSimulationChartData(
       (livingPlan.otherMonthlyAmount ?? 0) +
       (livingPlan.allowanceMainMonthlyAmount ?? 0) +
       (livingPlan.allowancePartnerMonthlyAmount ?? 0)
-
-    // 生活費は毎年一律（設定額×12ヶ月×10000円）加算する
-    datum.livingExpense = monthlyLiving * 12 * 10000
+    datum.livingExpense = monthlyLiving * 12 * 10_000
 
     datum.total =
       datum.rentalBase +
@@ -374,6 +278,20 @@ function buildSimulationChartData(
       datum.carExpense +
       datum.livingExpense
 
+    let yearlyIncome = 0
+    if (mainPerson)
+      yearlyIncome +=
+        calculateMemberSalaryForYear(mainPerson, incomeData.main, year) +
+        calculateMemberRetirementAllowanceForYear(mainPerson, incomeData.main, year)
+    if (partnerPerson)
+      yearlyIncome +=
+        calculateMemberSalaryForYear(partnerPerson, incomeData.partner, year) +
+        calculateMemberRetirementAllowanceForYear(partnerPerson, incomeData.partner, year)
+    yearlyIncome += incomeData.passiveIncome ?? 0
+    datum.income = yearlyIncome * 10_000
+
+    currentBalance += (datum.income - datum.total) / 10_000
+    datum.balance = currentBalance
     return datum
   })
 }
@@ -384,141 +302,125 @@ export default function Results() {
   const { plans: childPlans } = useChildStore()
   const { cars: carPlans } = useCarStore()
   const { plan: livingPlan } = useLivingStore()
+  const { main, partner, assets, passiveIncome } = useIncomeStore()
 
-  const dataset = buildSimulationChartData(homePlans, people, childPlans, carPlans, livingPlan)
+  const [tabValue, setTabValue] = React.useState(0)
+  const dataset = buildSimulationData(homePlans, people, childPlans, carPlans, livingPlan, {
+    main,
+    partner,
+    assets,
+    passiveIncome
+  })
+
+  const finalBalance = dataset[dataset.length - 1]?.balance ?? 0
+  const peakExpense = Math.max(...dataset.map((d) => d.total))
+  const peakYear = dataset.find((d) => d.total === peakExpense)?.year
 
   return (
     <Box sx={{ width: '100%', display: 'flex' }}>
       <Navi />
-      <Box
-        sx={{
-          width: '100%',
-          padding: '40px 20px',
-          margin: '0 auto'
-        }}
-      >
-        <Typography variant="h4" sx={{ marginBottom: '8px' }}>
-          結果
+      <Box sx={{ width: '100%', padding: '40px 20px', margin: '0 auto' }}>
+        <Typography variant="h4" sx={{ marginBottom: '8px', fontWeight: 'bold' }}>
+          シミュレーション結果
         </Typography>
-        <Typography color="text.secondary" sx={{ marginBottom: 3 }}>
-          入力されたデータから、シミュレーション結果（年ごとの支出）を表示しています。
+        <Typography color="text.secondary" sx={{ marginBottom: 4 }}>
+          将来の家計収支と資産残高の推移を確認しましょう。
         </Typography>
 
-        <Card>
-          <CardContent>
-            {dataset.length === 0 ? (
-              <Typography color="text.secondary">
-                家族や住宅費等のデータを追加すると、年ごとの支出グラフが表示されます。
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ marginBottom: 4 }}>
+          <Card sx={{ flex: 1, bgcolor: finalBalance >= 0 ? 'primary.light' : 'error.light', color: 'white' }}>
+            <CardContent>
+              <Typography variant="overline">90歳時点の資産残高</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                {formatCurrency(Math.floor(finalBalance))} 万円
               </Typography>
-            ) : (
-              <Stack spacing={3}>
-                <BarChart
-                  dataset={dataset}
-                  height={420}
-                  margin={{ top: 24, right: 24, bottom: 64, left: 72 }}
-                  xAxis={[
-                    {
-                      dataKey: 'year',
-                      scaleType: 'band',
-                      valueFormatter: (value) => `${value}年`,
-                      tickLabelStyle: { angle: 45, textAnchor: 'start', fontSize: 12 }
-                    }
-                  ]}
-                  yAxis={[
-                    {
-                      label: '万',
-                      valueFormatter: (value: number) => `${formatMan(value)}万`
-                    }
-                  ]}
-                  series={[
-                    {
-                      dataKey: 'rentalBase',
-                      label: '賃貸: 家賃',
-                      stack: 'housing',
-                      color: COLORS.rentalBase,
-                      valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
-                    },
-                    {
-                      dataKey: 'rentalRenewal',
-                      label: '賃貸: 更新料',
-                      stack: 'housing',
-                      color: COLORS.rentalRenewal,
-                      valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
-                    },
-                    {
-                      dataKey: 'ownSingle',
-                      label: '単身ローン',
-                      stack: 'housing',
-                      color: COLORS.ownSingle,
-                      valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
-                    },
-                    {
-                      dataKey: 'ownMain',
-                      label: 'ペアローン: 主債務者',
-                      stack: 'housing',
-                      color: COLORS.ownMain,
-                      valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
-                    },
-                    {
-                      dataKey: 'ownPartner',
-                      label: 'ペアローン: 配偶者',
-                      stack: 'housing',
-                      color: COLORS.ownPartner,
-                      valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
-                    },
-                    {
-                      dataKey: 'homeMaintenance',
-                      label: '持ち家: 維持修繕',
-                      stack: 'housing',
-                      color: COLORS.homeMaintenance,
-                      valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
-                    },
-                    {
-                      dataKey: 'childExpense',
-                      label: '子供費用',
-                      stack: 'housing',
-                      color: COLORS.childExpense,
-                      valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
-                    },
-                    {
-                      dataKey: 'carExpense',
-                      label: '車費用',
-                      stack: 'housing',
-                      color: COLORS.carExpense,
-                      valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
-                    },
-                    {
-                      dataKey: 'livingExpense',
-                      label: '基本生活費',
-                      stack: 'housing',
-                      color: COLORS.livingExpense,
-                      valueFormatter: (value) => `${formatCurrency(value ?? 0)}円`
-                    }
-                  ]}
-                  grid={{ horizontal: true }}
-                  borderRadius={6}
-                  slotProps={{
-                    legend: {
-                      direction: 'horizontal',
-                      position: { vertical: 'top', horizontal: 'center' }
-                    }
-                  }}
-                  sx={{
-                    '& .MuiChartsAxis-label': {
-                      fontSize: 12
-                    }
-                  }}
-                />
+            </CardContent>
+          </Card>
+          <Card sx={{ flex: 1 }}>
+            <CardContent>
+              <Typography variant="overline">最大支出（年額）</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                {formatMan(peakExpense)} 万円
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {peakYear}年ごろ
+              </Typography>
+            </CardContent>
+          </Card>
+        </Stack>
 
-                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                  {dataset.map((item) => (
-                    <Typography key={item.year} variant="body2" color="text.secondary">
-                      {item.year}: {formatMan(item.total)}万
-                    </Typography>
-                  ))}
-                </Box>
-              </Stack>
-            )}
+        <Card sx={{ borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+          <CardContent sx={{ p: 0 }}>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
+              <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} variant="scrollable" scrollButtons="auto">
+                <Tab label="資産残高推移" />
+                <Tab label="収支比較" />
+                <Tab label="支出の内訳" />
+              </Tabs>
+            </Box>
+
+            <Box sx={{ p: 3 }}>
+              {dataset.length === 0 ? (
+                <Typography color="text.secondary">データを入力するとシミュレーション結果が表示されます。</Typography>
+              ) : (
+                <>
+                  {tabValue === 0 && (
+                    <LineChart
+                      dataset={dataset}
+                      height={400}
+                      margin={{ top: 40, right: 20, bottom: 60, left: 80 }}
+                      xAxis={[{ dataKey: 'year', valueFormatter: (v) => `${v}年` }]}
+                      yAxis={[{ label: '資産残高 (万円)', valueFormatter: (v) => `${v.toLocaleString()}万` }]}
+                      series={[
+                        { dataKey: 'balance', label: '資産残高', color: COLORS.balance, showMark: false, area: true }
+                      ]}
+                    />
+                  )}
+                  {tabValue === 1 && (
+                    <BarChart
+                      dataset={dataset}
+                      height={400}
+                      margin={{ top: 40, right: 20, bottom: 60, left: 80 }}
+                      xAxis={[{ dataKey: 'year', scaleType: 'band', valueFormatter: (v) => `${v}年` }]}
+                      yAxis={[{ label: '金額 (万円)' }]}
+                      series={[
+                        {
+                          dataKey: 'income',
+                          label: '収入',
+                          color: COLORS.income,
+                          valueFormatter: (v) => `${formatMan(v ?? 0)}万`
+                        },
+                        {
+                          dataKey: 'total',
+                          label: '支出',
+                          color: COLORS.childExpense,
+                          valueFormatter: (v) => `${formatMan(v ?? 0)}万`
+                        }
+                      ]}
+                    />
+                  )}
+                  {tabValue === 2 && (
+                    <BarChart
+                      dataset={dataset}
+                      height={400}
+                      margin={{ top: 40, right: 20, bottom: 60, left: 80 }}
+                      xAxis={[{ dataKey: 'year', scaleType: 'band', valueFormatter: (v) => `${v}年` }]}
+                      series={[
+                        { dataKey: 'rentalBase', label: '家賃', stack: 'a', color: COLORS.rentalBase },
+                        { dataKey: 'rentalRenewal', label: '更新料', stack: 'a', color: COLORS.rentalRenewal },
+                        { dataKey: 'ownSingle', label: '住宅ローン', stack: 'a', color: COLORS.ownSingle },
+                        { dataKey: 'ownMain', label: 'ペアローン(主)', stack: 'a', color: COLORS.ownMain },
+                        { dataKey: 'ownPartner', label: 'ペアローン(副)', stack: 'a', color: COLORS.ownPartner },
+                        { dataKey: 'homeMaintenance', label: '維持費', stack: 'a', color: COLORS.homeMaintenance },
+                        { dataKey: 'childExpense', label: '子教育費', stack: 'a', color: COLORS.childExpense },
+                        { dataKey: 'carExpense', label: '車両費', stack: 'a', color: COLORS.carExpense },
+                        { dataKey: 'livingExpense', label: '生活費', stack: 'a', color: COLORS.livingExpense }
+                      ]}
+                    />
+                  )}
+                </>
+              )}
+            </Box>
           </CardContent>
         </Card>
       </Box>
