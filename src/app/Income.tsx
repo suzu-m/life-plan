@@ -39,9 +39,7 @@ const MemberIncomeForm = ({
                 id={`${title}-occupation`}
                 value={data.occupation}
                 label="職業"
-                onChange={(e: SelectChangeEvent) =>
-                  onChange({ occupation: e.target.value as Occupation })
-                }
+                onChange={(e: SelectChangeEvent) => onChange({ occupation: e.target.value as Occupation })}
               >
                 <MenuItem value="employee">会社員・公務員</MenuItem>
                 <MenuItem value="self-employed">自営業・フリーランス</MenuItem>
@@ -54,9 +52,7 @@ const MemberIncomeForm = ({
               value={data.annualSalary ?? 0}
               min={0}
               width={200}
-              onValueChange={(value) =>
-                onChange({ annualSalary: value === null ? null : Number(value) })
-              }
+              onValueChange={(value) => onChange({ annualSalary: value === null ? null : Number(value) })}
             />
 
             {data.occupation === 'employee' && (
@@ -66,9 +62,7 @@ const MemberIncomeForm = ({
                   value={data.retirementAllowance ?? 0}
                   min={0}
                   width={200}
-                  onValueChange={(value) =>
-                    onChange({ retirementAllowance: value === null ? null : Number(value) })
-                  }
+                  onValueChange={(value) => onChange({ retirementAllowance: value === null ? null : Number(value) })}
                   helperText="定年退職時に受け取る想定額"
                 />
                 <NumberField
@@ -77,13 +71,42 @@ const MemberIncomeForm = ({
                   min={0}
                   max={100}
                   width={200}
-                  onValueChange={(value) =>
-                    onChange({ retirementAge: value === null ? null : Number(value) })
-                  }
+                  onValueChange={(value) => onChange({ retirementAge: value === null ? null : Number(value) })}
                   helperText="定年退職の予定年齢"
                 />
               </>
             )}
+          </Box>
+
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 'bold' }}>
+              昇給設定
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'start' }}>
+              <FormControl sx={{ minWidth: 160 }}>
+                <InputLabel id={`${title}-increase-type-label`}>昇給の種類</InputLabel>
+                <Select
+                  labelId={`${title}-increase-type-label`}
+                  value={data.salaryIncreaseType}
+                  label="昇給の種類"
+                  onChange={(e: SelectChangeEvent) =>
+                    onChange({ salaryIncreaseType: e.target.value as 'amount' | 'rate' })
+                  }
+                >
+                  <MenuItem value="rate">年率 (%)</MenuItem>
+                  <MenuItem value="amount">定額 (万円)</MenuItem>
+                </Select>
+              </FormControl>
+              <NumberField
+                label={data.salaryIncreaseType === 'rate' ? '昇給率（%/年）' : '昇給額（万円/年）'}
+                value={data.salaryIncreaseValue ?? 0}
+                min={0.1}
+                step={0.1}
+                width={200}
+                onValueChange={(value) => onChange({ salaryIncreaseValue: value === null ? null : Number(value) })}
+                helperText={data.salaryIncreaseType === 'rate' ? '毎年◯%ずつアップ' : '毎年◯万円ずつアップ'}
+              />
+            </Box>
           </Box>
         </Stack>
       </CardContent>
@@ -92,21 +115,11 @@ const MemberIncomeForm = ({
 }
 
 export default function Income() {
-  const {
-    main,
-    partner,
-    assets,
-    passiveIncome,
-    updateMain,
-    updatePartner,
-    updateAssets,
-    updatePassiveIncome,
-    reset
-  } = useIncomeStore()
+  const { main, partner, assets, passiveIncome, updateMain, updatePartner, updateAssets, updatePassiveIncome, reset } =
+    useIncomeStore()
 
   // 世帯の年間合計収入の計算
-  const yearlyTotal =
-    (main.annualSalary ?? 0) + (partner.annualSalary ?? 0) + (passiveIncome ?? 0)
+  const yearlyTotal = (main.annualSalary ?? 0) + (partner.annualSalary ?? 0) + (passiveIncome ?? 0)
 
   return (
     <Box sx={{ width: '100%', display: 'flex' }}>
@@ -161,36 +174,28 @@ export default function Income() {
                   value={assets.bankSavings ?? 0}
                   min={0}
                   width={200}
-                  onValueChange={(value) =>
-                    updateAssets({ bankSavings: value === null ? null : Number(value) })
-                  }
+                  onValueChange={(value) => updateAssets({ bankSavings: value === null ? null : Number(value) })}
                 />
                 <NumberField
                   label="NISA（万円）"
                   value={assets.nisa ?? 0}
                   min={0}
                   width={200}
-                  onValueChange={(value) =>
-                    updateAssets({ nisa: value === null ? null : Number(value) })
-                  }
+                  onValueChange={(value) => updateAssets({ nisa: value === null ? null : Number(value) })}
                 />
                 <NumberField
                   label="iDeCo（万円）"
                   value={assets.ideco ?? 0}
                   min={0}
                   width={200}
-                  onValueChange={(value) =>
-                    updateAssets({ ideco: value === null ? null : Number(value) })
-                  }
+                  onValueChange={(value) => updateAssets({ ideco: value === null ? null : Number(value) })}
                 />
                 <NumberField
                   label="その他投資（万円）"
                   value={assets.otherInvestments ?? 0}
                   min={0}
                   width={200}
-                  onValueChange={(value) =>
-                    updateAssets({ otherInvestments: value === null ? null : Number(value) })
-                  }
+                  onValueChange={(value) => updateAssets({ otherInvestments: value === null ? null : Number(value) })}
                 />
               </Box>
             </CardContent>

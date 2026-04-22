@@ -18,6 +18,11 @@ export type CarPlan = {
   shakenAmount: number | null // 車検代（1回あたり/万円）
   taxYearlyAmount: number | null // 自動車税（年額/万円）
   maintenanceYearlyAmount: number | null // 保険・ガソリン等その他維持費（年額/万円）
+
+  // 計算用
+  carPrice: number | null // 車の総額（万円）
+  downPayment: number | null // 頭金（万円）
+  loanInterestRate: number | null // ローン利率（%）
 }
 
 type CarStore = {
@@ -43,7 +48,10 @@ const initCar: CarPlan = {
   isNewCar: true,
   shakenAmount: null,
   taxYearlyAmount: null,
-  maintenanceYearlyAmount: null
+  maintenanceYearlyAmount: null,
+  carPrice: null,
+  downPayment: null,
+  loanInterestRate: null
 }
 
 function cloneCar(car: CarPlan): CarPlan {

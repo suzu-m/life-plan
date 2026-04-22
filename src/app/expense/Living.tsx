@@ -67,7 +67,7 @@ export default function ExpenseLiving() {
             <CardContent>
               <Stack spacing={4}>
                 <Box>
-                  <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                  <Typography variant="subtitle1" sx={{ mb: 2 }}>
                     各項目の月額（万円）
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'start' }}>

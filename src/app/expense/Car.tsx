@@ -22,6 +22,28 @@ export default function ExpenseCar() {
   const sortedCars = [...cars.entries()].sort(([a], [b]) => a - b)
   const isDraftValid = draft.name.trim() !== '' && draft.purchaseYear !== null
 
+  /**
+   * ローン月額を計算する
+   */
+  const calculateLoanAmount = (data: typeof draft): number => {
+    const P = (data.carPrice ?? 0) - (data.downPayment ?? 0)
+    const n = data.loanPayments ?? 0
+    const FV = data.zankureFinalAmount ?? 0
+    const annualRate = data.loanInterestRate ?? 0
+
+    if (P <= 0 || n <= 0) return 0
+
+    const r = annualRate / 100 / 12
+    if (r === 0) {
+      return Math.round(((P - FV) / n) * 100) / 100
+    }
+
+    // 元利均等返済 (残価設定対応)
+    // Monthly = [(P - FV / (1+r)^n) * r / (1 - (1+r)^-n)]
+    const monthly = ((P - FV / Math.pow(1 + r, n)) * r) / (1 - Math.pow(1 + r, -n))
+    return Math.round(monthly * 100) / 100
+  }
+
   return (
     <Box sx={{ width: '100%', display: 'flex' }}>
       <Navi />
@@ -78,32 +100,74 @@ export default function ExpenseCar() {
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'start' }}>
                     <NumberField
+                      label="車の総額（万円）"
+                      value={draft.carPrice ?? 0}
+                      min={0}
+                      width={180}
+                      onValueChange={(value) => {
+                        const next = { ...draft, carPrice: value === null ? null : Number(value) }
+                        const monthly = calculateLoanAmount(next)
+                        updateDraft({ ...next, loanMonthlyAmount: monthly })
+                      }}
+                      helperText="諸経費込み"
+                    />
+                    <NumberField
+                      label="頭金（万円）"
+                      value={draft.downPayment ?? 0}
+                      min={0}
+                      width={180}
+                      onValueChange={(value) => {
+                        const next = { ...draft, downPayment: value === null ? null : Number(value) }
+                        const monthly = calculateLoanAmount(next)
+                        updateDraft({ ...next, loanMonthlyAmount: monthly })
+                      }}
+                    />
+                    <NumberField
                       label="ローン回数（月数）"
                       value={draft.loanPayments ?? 0}
                       min={0}
-                      width={240}
-                      onValueChange={(value) => updateDraft({ loanPayments: value === null ? null : Number(value) })}
-                      helperText="例: 60回払い"
+                      width={180}
+                      onValueChange={(value) => {
+                        const next = { ...draft, loanPayments: value === null ? null : Number(value) }
+                        const monthly = calculateLoanAmount(next)
+                        updateDraft({ ...next, loanMonthlyAmount: monthly })
+                      }}
+                      helperText="例: 60回"
+                    />
+                    <NumberField
+                      label="ローン利率（%）"
+                      value={draft.loanInterestRate ?? 0}
+                      min={0}
+                      width={180}
+                      onValueChange={(value) => {
+                        const next = { ...draft, loanInterestRate: value === null ? null : Number(value) }
+                        const monthly = calculateLoanAmount(next)
+                        updateDraft({ ...next, loanMonthlyAmount: monthly })
+                      }}
+                      helperText="年利を入力"
+                    />
+                    <NumberField
+                      label="残価設定（万円）"
+                      value={draft.zankureFinalAmount ?? 0}
+                      min={0}
+                      width={180}
+                      onValueChange={(value) => {
+                        const next = { ...draft, zankureFinalAmount: value === null ? null : Number(value) }
+                        const monthly = calculateLoanAmount(next)
+                        updateDraft({ ...next, loanMonthlyAmount: monthly })
+                      }}
+                      helperText="最終回支払額"
                     />
                     <NumberField
                       label="ローン月額（万円/月）"
                       value={draft.loanMonthlyAmount ?? 0}
                       min={0}
-                      width={240}
+                      width={200}
                       onValueChange={(value) =>
                         updateDraft({ loanMonthlyAmount: value === null ? null : Number(value) })
                       }
-                      helperText="小数点入力可"
-                    />
-                    <NumberField
-                      label="残価・最終支払額（万円）"
-                      value={draft.zankureFinalAmount ?? 0}
-                      min={0}
-                      width={240}
-                      onValueChange={(value) =>
-                        updateDraft({ zankureFinalAmount: value === null ? null : Number(value) })
-                      }
-                      helperText="残クレ利用時の最終額"
+                      helperText="自動計算（手入力可）"
+                      sx={{ bgcolor: 'action.hover' }}
                     />
                   </Box>
                 </Box>
@@ -181,8 +245,10 @@ export default function ExpenseCar() {
                     </Typography>
 
                     <Typography variant="body2" color="text.secondary">
-                      ローン: {car.loanPayments ?? 0}回払い / 月額 {car.loanMonthlyAmount ?? 0}万円
-                      {car.hasZankure ? ` (残クレ最終回: ${car.zankureFinalAmount ?? 0}万円)` : ''}
+                      総額: {car.carPrice ?? 0}万円 (頭金: {car.downPayment ?? 0}万円) / 金利:{' '}
+                      {car.loanInterestRate ?? 0}% / ローン: {car.loanPayments ?? 0}
+                      回払い / 月額 {car.loanMonthlyAmount ?? 0}万円
+                      {car.zankureFinalAmount ? ` (残価: ${car.zankureFinalAmount}万円)` : ''}
                     </Typography>
 
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>

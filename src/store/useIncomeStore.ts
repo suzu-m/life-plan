@@ -8,6 +8,8 @@ export type MemberIncome = {
   annualSalary: number | null        // 年収（万円）
   retirementAllowance: number | null // 退職金（万円）
   retirementAge: number | null       // 退職年齢（会社員のみ）
+  salaryIncreaseType: 'amount' | 'rate' // 昇給の種類
+  salaryIncreaseValue: number | null    // 昇給の額（万円）または率（%）
 }
 
 export type Assets = {
@@ -34,7 +36,9 @@ const initialMemberIncome: MemberIncome = {
   occupation: '',
   annualSalary: null,
   retirementAllowance: null,
-  retirementAge: 60
+  retirementAge: 60,
+  salaryIncreaseType: 'rate',
+  salaryIncreaseValue: 0
 }
 
 const initialAssets: Assets = {
