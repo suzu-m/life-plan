@@ -22,6 +22,7 @@ import { useCarStore, type CarPlan } from '@/store/useCarStore'
 import { useLivingStore, type LivingPlan } from '@/store/useLivingStore'
 import { useIncomeStore, type MemberIncome, type Assets } from '@/store/useIncomeStore'
 import { useOtherStore, type OtherExpense } from '@/store/useOtherStore'
+import { useRetirementStore, type RetirementPlan } from '@/store/useRetirementStore'
 import React from 'react'
 
 type SimulationChartDatum = {
@@ -155,15 +156,32 @@ const calculateMemberSalaryForYear = (person: Person, incomeData: MemberIncome, 
   const baseSalary = incomeData.annualSalary ?? 0
   const elapsedYears = year - CURRENT_YEAR
 
-  if (elapsedYears <= 0) return baseSalary
-
-  const increaseValue = incomeData.salaryIncreaseValue ?? 0
-  if (incomeData.salaryIncreaseType === 'amount') {
-    // 定額昇給: 年収 + (経過年数 * 昇給額)
-    return baseSalary + elapsedYears * increaseValue
+  // 昇給を考慮したフルタイム時の期待年収を算出
+  let fullSalary = baseSalary
+  if (elapsedYears > 0) {
+    const increaseValue = incomeData.salaryIncreaseValue ?? 0
+    if (incomeData.salaryIncreaseType === 'amount') {
+      fullSalary = baseSalary + elapsedYears * increaseValue
+    } else {
+      fullSalary = baseSalary * Math.pow(1 + increaseValue / 100, elapsedYears)
+    }
   }
-  // 比例昇給（複利）: 年収 * (1 + 昇給率)^経過年数
-  return baseSalary * Math.pow(1 + increaseValue / 100, elapsedYears)
+
+  // 産休・育休および時短勤務の考慮
+  const leave = incomeData.leavePeriods?.find((p) => p.year === year)
+  const shortTime = incomeData.shortTimePeriods?.find((p) => year >= p.startYear && year <= p.endYear)
+
+  const leaveMonths = leave ? Math.min(12, leave.months) : 0
+  const workMonths = 12 - leaveMonths
+
+  // 1. 産休・育休期間の収入（給付金等）
+  const leaveIncome = (leaveMonths / 12) * fullSalary * ((leave?.rate ?? 0) / 100)
+
+  // 2. 稼働期間の収入（時短勤務を考慮）
+  const workRate = shortTime ? shortTime.rate / 100 : 1
+  const workIncome = (workMonths / 12) * fullSalary * workRate
+
+  return leaveIncome + workIncome
 }
 
 /**
@@ -228,7 +246,8 @@ const buildSimulationData = (
   carPlans: Map<number, CarPlan>,
   livingPlan: LivingPlan,
   otherExpenses: Map<number, OtherExpense>,
-  incomeData: { main: MemberIncome; partner: MemberIncome; assets: Assets; passiveIncome: number | null }
+  incomeData: { main: MemberIncome; partner: MemberIncome; assets: Assets; passiveIncome: number | null },
+  retirementPlan: RetirementPlan
 ): SimulationChartDatum[] => {
   const { startYear, endYear } = getSimulationRange(homePlans, people)
   let currentBalance =
@@ -236,8 +255,8 @@ const buildSimulationData = (
     (incomeData.assets.nisa ?? 0) +
     (incomeData.assets.ideco ?? 0) +
     (incomeData.assets.otherInvestments ?? 0)
-  const mainPerson = Array.from(people.values()).find((p) => p.relationship === 'myself')
-  const partnerPerson = Array.from(people.values()).find((p) => p.relationship === 'spouse')
+  const myself = Array.from(people.values()).find((p) => p.relationship === 'myself')
+  const spouse = Array.from(people.values()).find((p) => p.relationship === 'spouse')
 
   return Array.from({ length: endYear - startYear + 1 }, (_, offset) => {
     const year = startYear + offset
@@ -284,9 +303,13 @@ const buildSimulationData = (
             plan.own.loans[1]?.repaymentType ?? 'equal-principal-interest'
           )
         }
-        const monthlyMaintenance =
-          (plan.own.managementFee ?? 0) + (plan.own.repairReserveFee ?? 0) + (plan.own.houseRepairReserveFee ?? 0)
-        datum.homeMaintenance += monthlyMaintenance * 12 * 10_000
+        datum.homeMaintenance +=
+          ((plan.own.managementFee ?? 0) +
+            (plan.own.repairReserveFee ?? 0) +
+            (plan.own.houseRepairReserveFee ?? 0)) *
+          12 *
+          10_000
+        datum.homeMaintenance += (plan.own.propertyTaxYearly ?? 0) * 10_000
       }
     })
 
@@ -301,16 +324,21 @@ const buildSimulationData = (
       datum.carExpense += calculateCarExpenseForYear(car, year)
     })
 
-    const monthlyLiving =
-      (livingPlan.foodMonthlyAmount ?? 0) +
-      (livingPlan.utilitiesMonthlyAmount ?? 0) +
-      (livingPlan.telecomMonthlyAmount ?? 0) +
-      (livingPlan.insuranceMonthlyAmount ?? 0) +
-      (livingPlan.hobbiesMonthlyAmount ?? 0) +
-      (livingPlan.otherMonthlyAmount ?? 0) +
-      (livingPlan.allowanceMainMonthlyAmount ?? 0) +
-      (livingPlan.allowancePartnerMonthlyAmount ?? 0)
-    datum.livingExpense = monthlyLiving * 12 * 10_000
+    // 生活費計算
+    const myAge = myself && myself.age !== null ? year - (CURRENT_YEAR - myself.age) : 0
+    const isRetired = myAge > (incomeData.main.retirementAge ?? 60)
+    datum.livingExpense = isRetired
+      ? retirementPlan.retirementLivingExpenseMonthly * 12 * 10_000
+      : ((livingPlan.foodMonthlyAmount ?? 0) +
+          (livingPlan.utilitiesMonthlyAmount ?? 0) +
+          (livingPlan.telecomMonthlyAmount ?? 0) +
+          (livingPlan.insuranceMonthlyAmount ?? 0) +
+          (livingPlan.hobbiesMonthlyAmount ?? 0) +
+          (livingPlan.otherMonthlyAmount ?? 0) +
+          (livingPlan.allowanceMainMonthlyAmount ?? 0) +
+          (livingPlan.allowancePartnerMonthlyAmount ?? 0)) *
+        12 *
+        10_000
 
     otherExpenses.forEach((expense) => {
       if (expense.startYear === null || year < expense.startYear || expense.amount === null) return
@@ -333,17 +361,25 @@ const buildSimulationData = (
       datum.livingExpense +
       datum.otherExpense
 
-    let yearlyIncome = 0
-    if (mainPerson)
-      yearlyIncome +=
-        calculateMemberSalaryForYear(mainPerson, incomeData.main, year) +
-        calculateMemberRetirementAllowanceForYear(mainPerson, incomeData.main, year)
-    if (partnerPerson)
-      yearlyIncome +=
-        calculateMemberSalaryForYear(partnerPerson, incomeData.partner, year) +
-        calculateMemberRetirementAllowanceForYear(partnerPerson, incomeData.partner, year)
-    yearlyIncome += incomeData.passiveIncome ?? 0
-    datum.income = yearlyIncome * 10_000
+    // 収入計算
+    let yearlyIncome = (incomeData.passiveIncome ?? 0) * 12 * 10_000
+    if (myself) {
+      yearlyIncome += calculateMemberSalaryForYear(myself, incomeData.main, year) * 10_000
+      yearlyIncome += calculateMemberRetirementAllowanceForYear(myself, incomeData.main, year) * 10_000
+      const myAge = year - (CURRENT_YEAR - myself.age!)
+      if (myAge >= retirementPlan.selfPensionStartAge) {
+        yearlyIncome += retirementPlan.selfPensionMonthly * 12 * 10_000
+      }
+    }
+    if (spouse) {
+      yearlyIncome += calculateMemberSalaryForYear(spouse, incomeData.partner, year) * 10_000
+      yearlyIncome += calculateMemberRetirementAllowanceForYear(spouse, incomeData.partner, year) * 10_000
+      const spouseAge = year - (CURRENT_YEAR - spouse.age!)
+      if (spouseAge >= retirementPlan.spousePensionStartAge) {
+        yearlyIncome += retirementPlan.spousePensionMonthly * 12 * 10_000
+      }
+    }
+    datum.income = yearlyIncome
 
     currentBalance += (datum.income - datum.total) / 10_000
     datum.balance = currentBalance
@@ -359,23 +395,52 @@ export default function Results() {
   const { plan: livingPlan } = useLivingStore()
   const { expenses: otherExpenses } = useOtherStore()
   const { main, partner, assets, passiveIncome } = useIncomeStore()
+  const retirementData = useRetirementStore()
 
   const [tabValue, setTabValue] = React.useState(0)
-  const dataset = buildSimulationData(homePlans, people, childPlans, carPlans, livingPlan, otherExpenses, {
-    main,
-    partner,
-    assets,
-    passiveIncome
-  })
+  const dataset = React.useMemo(
+    () =>
+      buildSimulationData(
+        homePlans,
+        people,
+        childPlans,
+        carPlans,
+        livingPlan,
+        otherExpenses,
+        {
+          main,
+          partner,
+          assets,
+          passiveIncome
+        },
+        retirementData
+      ),
+    [
+      homePlans,
+      people,
+      childPlans,
+      carPlans,
+      livingPlan,
+      otherExpenses,
+      main,
+      partner,
+      assets,
+      passiveIncome,
+      retirementData
+    ]
+  )
 
   const finalBalance = dataset[dataset.length - 1]?.balance ?? 0
   const peakExpense = Math.max(...dataset.map((d) => d.total))
   const peakYear = dataset.find((d) => d.total === peakExpense)?.year
 
+  // グラフの幅をデータ数（年度数）に応じて計算
+  const chartWidth = Math.max(800, dataset.length * 40)
+
   return (
-    <Box sx={{ width: '100%', display: 'flex' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'grey.50' }}>
       <Navi />
-      <Box sx={{ width: '100%', padding: '40px 20px', margin: '0 auto' }}>
+      <Box sx={{ flexGrow: 1, minWidth: 0, p: { xs: 2, md: 4 } }}>
         <Typography variant="h4" sx={{ marginBottom: '8px', fontWeight: 'bold' }}>
           シミュレーション結果
         </Typography>
@@ -422,16 +487,39 @@ export default function Results() {
                 <>
                   {tabValue === 0 && (
                     <>
-                      <LineChart
-                        dataset={dataset}
-                        height={400}
-                        margin={{ top: 40, right: 20, bottom: 60, left: 80 }}
-                        xAxis={[{ dataKey: 'year', valueFormatter: (v: number) => `${v}年` }]}
-                        yAxis={[{ label: '資産残高 (万円)', valueFormatter: (v: number) => `${v.toLocaleString()}万` }]}
-                        series={[
-                          { dataKey: 'balance', label: '資産残高', color: COLORS.balance, showMark: false, area: true }
-                        ]}
-                      />
+                      <Box sx={{ width: '100%', overflowX: 'auto' }}>
+                        <Box sx={{ minWidth: Math.max(800, dataset.length * 10) }}>
+                          <LineChart
+                            dataset={dataset}
+                            height={550}
+                            margin={{ top: 40, right: 20, bottom: 100, left: 100 }}
+                            xAxis={[
+                              {
+                                dataKey: 'year',
+                                valueFormatter: (v: number) => `${v}年`
+                              }
+                            ]}
+                            yAxis={[
+                              { label: '資産残高 (万円)', valueFormatter: (v: number) => `${v.toLocaleString()}万` }
+                            ]}
+                            series={[
+                              {
+                                dataKey: 'balance',
+                                label: '資産残高',
+                                color: COLORS.balance,
+                                showMark: false,
+                                area: true
+                              }
+                            ]}
+                            slotProps={{
+                              legend: {
+                                direction: 'horizontal',
+                                position: { vertical: 'top', horizontal: 'center' }
+                              }
+                            }}
+                          />
+                        </Box>
+                      </Box>
 
                       <Box sx={{ mt: 5 }}>
                         <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold' }}>
@@ -477,47 +565,70 @@ export default function Results() {
                     </>
                   )}
                   {tabValue === 1 && (
-                    <BarChart
-                      dataset={dataset}
-                      height={400}
-                      margin={{ top: 40, right: 20, bottom: 60, left: 80 }}
-                      xAxis={[{ dataKey: 'year', scaleType: 'band', valueFormatter: (v: number) => `${v}年` }]}
-                      yAxis={[{ label: '金額 (万円)' }]}
-                      series={[
-                        {
-                          dataKey: 'income',
-                          label: '収入',
-                          color: COLORS.income,
-                          valueFormatter: (v: number | null) => `${formatMan(v ?? 0)}万`
-                        },
-                        {
-                          dataKey: 'total',
-                          label: '支出',
-                          color: COLORS.childExpense,
-                          valueFormatter: (v: number | null) => `${formatMan(v ?? 0)}万`
-                        }
-                      ]}
-                    />
+                    <Box sx={{ width: '100%', overflowX: 'auto' }}>
+                      <Box sx={{ minWidth: chartWidth }}>
+                        <BarChart
+                          dataset={dataset}
+                          height={550}
+                          margin={{ top: 40, right: 20, bottom: 100, left: 100 }}
+                          xAxis={[
+                            {
+                              dataKey: 'year',
+                              scaleType: 'band',
+                              valueFormatter: (v: number) => `${v}年`
+                            }
+                          ]}
+                          yAxis={[{ label: '収支 (万円)', valueFormatter: (v: number) => `${v.toLocaleString()}万` }]}
+                          series={[
+                            { dataKey: 'income', label: '収入', color: COLORS.income },
+                            { dataKey: 'total', label: '支出', color: COLORS.rentalRenewal }
+                          ]}
+                          slotProps={{
+                            legend: {
+                              direction: 'horizontal',
+                              position: { vertical: 'top', horizontal: 'center' }
+                            }
+                          }}
+                        />
+                      </Box>
+                    </Box>
                   )}
                   {tabValue === 2 && (
-                    <BarChart
-                      dataset={dataset}
-                      height={400}
-                      margin={{ top: 40, right: 20, bottom: 60, left: 80 }}
-                      xAxis={[{ dataKey: 'year', scaleType: 'band', valueFormatter: (v: number) => `${v}年` }]}
-                      series={[
-                        { dataKey: 'rentalBase', label: '家賃', stack: 'a', color: COLORS.rentalBase },
-                        { dataKey: 'rentalRenewal', label: '更新料', stack: 'a', color: COLORS.rentalRenewal },
-                        { dataKey: 'ownSingle', label: '住宅ローン', stack: 'a', color: COLORS.ownSingle },
-                        { dataKey: 'ownMain', label: 'ペアローン(主)', stack: 'a', color: COLORS.ownMain },
-                        { dataKey: 'ownPartner', label: 'ペアローン(副)', stack: 'a', color: COLORS.ownPartner },
-                        { dataKey: 'homeMaintenance', label: '維持費', stack: 'a', color: COLORS.homeMaintenance },
-                        { dataKey: 'childExpense', label: '子教育費', stack: 'a', color: COLORS.childExpense },
-                        { dataKey: 'carExpense', label: '車両費', stack: 'a', color: COLORS.carExpense },
-                        { dataKey: 'livingExpense', label: '生活費', stack: 'a', color: COLORS.livingExpense },
-                        { dataKey: 'otherExpense', label: 'その他', stack: 'a', color: COLORS.otherExpense }
-                      ]}
-                    />
+                    <Box sx={{ width: '100%', overflowX: 'auto' }}>
+                      <Box sx={{ minWidth: chartWidth }}>
+                        <BarChart
+                          dataset={dataset}
+                          height={550}
+                          margin={{ top: 40, right: 20, bottom: 100, left: 100 }}
+                          xAxis={[
+                            {
+                              dataKey: 'year',
+                              scaleType: 'band',
+                              valueFormatter: (v: number) => `${v}年`
+                            }
+                          ]}
+                          yAxis={[{ label: '支出 (万円)', valueFormatter: (v: number) => `${v.toLocaleString()}万` }]}
+                          series={[
+                            { dataKey: 'rentalBase', label: '家賃', stack: 'a', color: COLORS.rentalBase },
+                            { dataKey: 'rentalRenewal', label: '更新料', stack: 'a', color: COLORS.rentalRenewal },
+                            { dataKey: 'ownSingle', label: '住宅ローン', stack: 'a', color: COLORS.ownSingle },
+                            { dataKey: 'ownMain', label: 'ペアローン(主)', stack: 'a', color: COLORS.ownMain },
+                            { dataKey: 'ownPartner', label: 'ペアローン(副)', stack: 'a', color: COLORS.ownPartner },
+                            { dataKey: 'homeMaintenance', label: '維持費', stack: 'a', color: COLORS.homeMaintenance },
+                            { dataKey: 'childExpense', label: '子教育費', stack: 'a', color: COLORS.childExpense },
+                            { dataKey: 'carExpense', label: '車両費', stack: 'a', color: COLORS.carExpense },
+                            { dataKey: 'livingExpense', label: '生活費', stack: 'a', color: COLORS.livingExpense },
+                            { dataKey: 'otherExpense', label: 'その他', stack: 'a', color: COLORS.otherExpense }
+                          ]}
+                          slotProps={{
+                            legend: {
+                              direction: 'horizontal',
+                              position: { vertical: 'top', horizontal: 'center' }
+                            }
+                          }}
+                        />
+                      </Box>
+                    </Box>
                   )}
                 </>
               )}

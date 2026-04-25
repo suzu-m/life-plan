@@ -30,6 +30,7 @@ export type OwnPlanData = {
   managementFee: number | null
   repairReserveFee: number | null
   houseRepairReserveFee: number | null
+  propertyTaxYearly: number | null
 }
 
 export type HomePlan = {
@@ -91,7 +92,8 @@ const createDraft = (id: number): HomePlan => {
       buildingType: '',
       managementFee: null,
       repairReserveFee: null,
-      houseRepairReserveFee: null
+      houseRepairReserveFee: null,
+      propertyTaxYearly: null
     }
   }
 }

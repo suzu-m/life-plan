@@ -12,6 +12,7 @@ import ExpenseCar from './app/expense/Car.tsx'
 import ExpenseLiving from './app/expense/Living.tsx'
 import ExpenseOther from './app/expense/Other.tsx'
 import Income from './app/Income.tsx'
+import Retirement from './app/Retirement.tsx'
 import Results from './app/Results.tsx'
 const theme = createTheme({
   // spacing: 4,
@@ -59,6 +60,10 @@ const router = createBrowserRouter([
   {
     path: '/income',
     element: <Income />
+  },
+  {
+    path: '/retirement',
+    element: <Retirement />
   },
   {
     path: '/results',

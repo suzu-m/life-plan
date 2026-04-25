@@ -16,6 +16,7 @@ import NightlifeIcon from '@mui/icons-material/Nightlife'
 import SavingsIcon from '@mui/icons-material/Savings'
 import ChildCareIcon from '@mui/icons-material/ChildCare'
 import OutputIcon from '@mui/icons-material/Output'
+import ElderlyIcon from '@mui/icons-material/Elderly'
 
 export default function NestedList() {
   const [openIncome, setOpenIncome] = React.useState(true)
@@ -94,7 +95,12 @@ export default function NestedList() {
         </ListItemIcon>
         <ListItemText primary="収入" />
       </ListItemButton>
-
+      <ListItemButton component="a" href="/retirement">
+        <ListItemIcon>
+          <ElderlyIcon />
+        </ListItemIcon>
+        <ListItemText primary="老後設定" />
+      </ListItemButton>
       <ListItemButton component="a" href="/results">
         <ListItemIcon>
           <FactCheckIcon />

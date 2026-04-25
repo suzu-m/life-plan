@@ -8,6 +8,9 @@ import MenuItem from '@mui/material/MenuItem'
 import Select, { type SelectChangeEvent } from '@mui/material/Select'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
+import IconButton from '@mui/material/IconButton'
+import AddIcon from '@mui/icons-material/Add'
+import DeleteIcon from '@mui/icons-material/Delete'
 import Navi from '@/components/common/Navi'
 import NumberField from '@/components/common/NumberField'
 import { useIncomeStore, type Occupation, type MemberIncome } from '@/store/useIncomeStore'
@@ -107,6 +110,163 @@ const MemberIncomeForm = ({
                 helperText={data.salaryIncreaseType === 'rate' ? '毎年◯%ずつアップ' : '毎年◯万円ずつアップ'}
               />
             </Box>
+          </Box>
+
+          <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 'bold' }}>
+              産休・育休の設定
+            </Typography>
+            <Stack spacing={2}>
+              {(data.leavePeriods ?? []).map((period) => (
+                <Box key={period.id} sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'start' }}>
+                  <NumberField
+                    size="small"
+                    label="対象年"
+                    value={period.year}
+                    width={120}
+                    onValueChange={(val) => {
+                      const next = (data.leavePeriods ?? []).map((p) =>
+                        p.id === period.id ? { ...p, year: val === null ? new Date().getFullYear() : Number(val) } : p
+                      )
+                      onChange({ leavePeriods: next })
+                    }}
+                  />
+                  <NumberField
+                    size="small"
+                    label="期間（ヵ月）"
+                    value={period.months}
+                    min={1}
+                    max={12}
+                    width={120}
+                    onValueChange={(val) => {
+                      const next = (data.leavePeriods ?? []).map((p) =>
+                        p.id === period.id ? { ...p, months: val === null ? 0 : Number(val) } : p
+                      )
+                      onChange({ leavePeriods: next })
+                    }}
+                  />
+                  <NumberField
+                    size="small"
+                    label="給与補填率 (%)"
+                    value={period.rate}
+                    min={0}
+                    max={100}
+                    width={140}
+                    onValueChange={(val) => {
+                      const next = (data.leavePeriods ?? []).map((p) =>
+                        p.id === period.id ? { ...p, rate: val === null ? 0 : Number(val) } : p
+                      )
+                      onChange({ leavePeriods: next })
+                    }}
+                    helperText="標準: 67% or 50%"
+                  />
+                  <IconButton
+                    color="error"
+                    size="small"
+                    onClick={() => {
+                      const next = (data.leavePeriods ?? []).filter((p) => p.id !== period.id)
+                      onChange({ leavePeriods: next })
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              ))}
+              <Button
+                startIcon={<AddIcon />}
+                variant="outlined"
+                size="small"
+                sx={{ alignSelf: 'flex-start' }}
+                onClick={() => {
+                  const periods = data.leavePeriods ?? []
+                  const newId =
+                    periods.length > 0 ? Math.max(...periods.map((p) => p.id)) + 1 : 0
+                  const currentYear = new Date().getFullYear()
+                  const next = [...periods, { id: newId, year: currentYear, months: 12, rate: 67 }]
+                  onChange({ leavePeriods: next })
+                }}
+              >
+                休暇期間を追加
+              </Button>
+            </Stack>
+          </Box>
+
+          <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 'bold' }}>
+              時短勤務の設定
+            </Typography>
+            <Stack spacing={2}>
+              {(data.shortTimePeriods ?? []).map((period) => (
+                <Box key={period.id} sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'start' }}>
+                  <NumberField
+                    size="small"
+                    label="開始年"
+                    value={period.startYear}
+                    width={100}
+                    onValueChange={(val) => {
+                      const next = (data.shortTimePeriods ?? []).map((p) =>
+                        p.id === period.id ? { ...p, startYear: val === null ? new Date().getFullYear() : Number(val) } : p
+                      )
+                      onChange({ shortTimePeriods: next })
+                    }}
+                  />
+                  <Typography sx={{ alignSelf: 'center', color: 'text.secondary' }}>〜</Typography>
+                  <NumberField
+                    size="small"
+                    label="終了年"
+                    value={period.endYear}
+                    width={100}
+                    onValueChange={(val) => {
+                      const next = (data.shortTimePeriods ?? []).map((p) =>
+                        p.id === period.id ? { ...p, endYear: val === null ? new Date().getFullYear() : Number(val) } : p
+                      )
+                      onChange({ shortTimePeriods: next })
+                    }}
+                  />
+                  <NumberField
+                    size="small"
+                    label="給与支払率 (%)"
+                    value={period.rate}
+                    min={0}
+                    max={100}
+                    width={120}
+                    onValueChange={(val) => {
+                      const next = (data.shortTimePeriods ?? []).map((p) =>
+                        p.id === period.id ? { ...p, rate: val === null ? 0 : Number(val) } : p
+                      )
+                      onChange({ shortTimePeriods: next })
+                    }}
+                    helperText="フルタイム=100"
+                  />
+                  <IconButton
+                    color="error"
+                    size="small"
+                    onClick={() => {
+                      const next = (data.shortTimePeriods ?? []).filter((p) => p.id !== period.id)
+                      onChange({ shortTimePeriods: next })
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              ))}
+              <Button
+                startIcon={<AddIcon />}
+                variant="outlined"
+                size="small"
+                sx={{ alignSelf: 'flex-start' }}
+                onClick={() => {
+                  const periods = data.shortTimePeriods ?? []
+                  const newId =
+                    periods.length > 0 ? Math.max(...periods.map((p) => p.id)) + 1 : 0
+                  const currentYear = new Date().getFullYear()
+                  const next = [...periods, { id: newId, startYear: currentYear, endYear: currentYear + 1, rate: 80 }]
+                  onChange({ shortTimePeriods: next })
+                }}
+              >
+                時短期間を追加
+              </Button>
+            </Stack>
           </Box>
         </Stack>
       </CardContent>

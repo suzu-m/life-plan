@@ -3,6 +3,20 @@ import { persist } from 'zustand/middleware'
 
 export type Occupation = 'employee' | 'self-employed' | 'other' | ''
 
+export type ShortTimePeriod = {
+  id: number
+  startYear: number // 開始年度
+  endYear: number   // 終了年度
+  rate: number      // 給与支払率 (%)
+}
+
+export type LeavePeriod = {
+  id: number
+  year: number // 年度
+  months: number // その年の休暇月数 (1-12)
+  rate: number // 給与補填率 (%)
+}
+
 export type MemberIncome = {
   occupation: Occupation
   annualSalary: number | null        // 年収（万円）
@@ -10,6 +24,8 @@ export type MemberIncome = {
   retirementAge: number | null       // 退職年齢（会社員のみ）
   salaryIncreaseType: 'amount' | 'rate' // 昇給の種類
   salaryIncreaseValue: number | null    // 昇給の額（万円）または率（%）
+  leavePeriods: LeavePeriod[] // 産休・育休期間
+  shortTimePeriods: ShortTimePeriod[] // 時短勤務期間
 }
 
 export type Assets = {
@@ -38,7 +54,9 @@ const initialMemberIncome: MemberIncome = {
   retirementAllowance: null,
   retirementAge: 60,
   salaryIncreaseType: 'rate',
-  salaryIncreaseValue: 0
+  salaryIncreaseValue: 0,
+  leavePeriods: [],
+  shortTimePeriods: []
 }
 
 const initialAssets: Assets = {

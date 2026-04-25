@@ -16,14 +16,15 @@ import NumberField from '@/components/common/NumberField'
 import RentalCard from '@/components/feature/expense/RentalCard'
 import OwnCard from '@/components/feature/expense/OwnCard'
 import { useHomeStore, type HomePlan } from '@/store/useHomeStore'
+import { calculateMonthlyPayment } from '@/utils/loan'
 
 /**
  * 通貨形式で金額をフォーマットする
  * @param amount
  * @returns
  */
-function formatCurrency(amount: number | null) {
-  if (amount === null) {
+function formatCurrency(amount: number | null | undefined) {
+  if (amount === null || amount === undefined) {
     return '-'
   }
 
@@ -169,30 +170,72 @@ export default function ExpenseHome() {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
                   {plan.type === 'rental' ? (
                     <Box>
-                      <Typography>{formatPeriod(plan)}</Typography>
-                      <Typography>賃貸</Typography>
+                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 1 }}>
+                        <Typography
+                          sx={{ bgcolor: 'primary.main', color: 'white', px: 1, borderRadius: 1, fontSize: '0.8rem' }}
+                        >
+                          賃貸
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>
+                          {formatPeriod(plan)}
+                        </Typography>
+                      </Box>
                       <Typography>家賃 {formatCurrency(plan.rental.fee)}円</Typography>
                       <Typography>更新料 {formatCurrency(plan.rental.renewalFee)}円</Typography>
                       <Typography>更新頻度 {plan.rental.renewalFrequency ?? '-'}年</Typography>
                     </Box>
                   ) : (
-                    <Box>
-                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                        <Typography>{formatPeriod(plan)}</Typography>
-                        <Typography>持ち家</Typography>
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 1 }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            gap: 2,
+                            alignItems: 'center'
+                          }}
+                        >
+                          <Typography
+                            sx={{ bgcolor: 'primary.main', color: 'white', px: 1, borderRadius: 1, fontSize: '0.8rem' }}
+                          >
+                            持ち家
+                          </Typography>
+                          <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>
+                            {formatPeriod(plan)}
+                          </Typography>
+                        </Box>
+                        <Typography variant="h6" color="primary.main" sx={{ fontSize: '1.1rem' }}>
+                          月々合計:{' '}
+                          {(
+                            plan.own.loans.reduce(
+                              (acc, loan) =>
+                                acc +
+                                calculateMonthlyPayment(
+                                  loan.amount,
+                                  loan.period,
+                                  loan.interestRate,
+                                  loan.repaymentType
+                                ),
+                              0
+                            ) / 10000
+                          ).toLocaleString(undefined, { maximumFractionDigits: 1 })}{' '}
+                          万円
+                        </Typography>
                       </Box>
-                      <Typography>{plan.own.loanMode === 'pair' ? 'ペアローン' : '単身ローン'}</Typography>
+
                       {plan.own.buildingType === 'mansion' && (
                         <Typography sx={{ mt: 0.5, mb: 1 }} variant="body2" color="text.secondary">
                           マンション: 管理費 {formatCurrency(plan.own.managementFee)}万円/月 / 修繕積立金{' '}
-                          {formatCurrency(plan.own.repairReserveFee)}万円/月
+                          {formatCurrency(plan.own.repairReserveFee)}万円/月 / 固定資産税{' '}
+                          {formatCurrency(plan.own.propertyTaxYearly)}万円/年
                         </Typography>
                       )}
                       {plan.own.buildingType === 'house' && (
                         <Typography sx={{ mt: 0.5, mb: 1 }} variant="body2" color="text.secondary">
-                          戸建: 修繕積立 {formatCurrency(plan.own.houseRepairReserveFee)}万円/月
+                          戸建: 修繕積立 {formatCurrency(plan.own.houseRepairReserveFee)}万円/月 / 固定資産税{' '}
+                          {formatCurrency(plan.own.propertyTaxYearly)}万円/年
                         </Typography>
                       )}
+                      <Typography>{plan.own.loanMode === 'pair' ? 'ペアローン' : '単身ローン'}</Typography>
                       <Box>
                         {plan.own.loans.map((loan) => {
                           const amount = formatCurrency(loan.amount)
@@ -207,13 +250,27 @@ export default function ExpenseHome() {
                                 : '-'
                           const interest = loan.interestRate ?? '-'
                           return (
-                            <Box key={loan.id} sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                              <Typography>{loan.name}</Typography>
-                              <Typography>{amount}円</Typography>
-                              <Typography>{period}</Typography>
-                              <Typography>{rateType}</Typography>
-                              <Typography>{repaymentType}</Typography>
-                              <Typography>{interest}%</Typography>
+                            <Box key={loan.id}>
+                              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                <Typography>{loan.name}</Typography>
+                                <Typography>{amount}円</Typography>
+                                <Typography>{period}</Typography>
+                                <Typography>{rateType}</Typography>
+                                <Typography>{repaymentType}</Typography>
+                                <Typography>{interest}%</Typography>
+                              </Box>
+                              <Typography variant="body2" color="primary" sx={{ mb: 1 }}>
+                                月々返済額:{' '}
+                                {(
+                                  calculateMonthlyPayment(
+                                    loan.amount,
+                                    loan.period,
+                                    loan.interestRate,
+                                    loan.repaymentType
+                                  ) / 10000
+                                ).toLocaleString(undefined, { maximumFractionDigits: 1 })}{' '}
+                                万円
+                              </Typography>
                             </Box>
                           )
                         })}
