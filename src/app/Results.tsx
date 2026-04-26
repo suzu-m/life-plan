@@ -26,9 +26,10 @@ import { useOtherStore } from '@/store/useOtherStore'
 import { useRetirementStore } from '@/store/useRetirementStore'
 import { formatCurrency, formatMan } from '@/utils/format'
 import { buildSimulationData } from '@/utils/simulation'
+import type { AxisValueFormatterContext } from '@mui/x-charts/models'
 
 const COLORS = {
-  rentalBase: '#3a86ff',
+  rentalBase: '#e63636ff',
   rentalRenewal: '#fb5607',
   ownSingle: '#2a9d8f',
   ownMain: '#e63636ff',
@@ -38,10 +39,16 @@ const COLORS = {
   carExpense: '#f174d8ff',
   livingExpense: '#38b000',
   otherExpense: '#3a3a39ff',
-  income: '#38b000',
+  income: '#c8c67aff',
   balance: '#2179bcff'
 }
 
+const chartValueFormatter = (v: number | null) => {
+  if (v === null) return '-'
+  const man = v / 10000
+  const monthly = Math.floor(v / 12)
+  return `${man.toLocaleString()}万 (月: ${monthly.toLocaleString()}円)`
+}
 
 export default function Results() {
   const { plans: homePlans } = useHomeStore()
@@ -90,6 +97,9 @@ export default function Results() {
   const peakExpense = Math.max(...dataset.map((d) => d.total))
   const peakYear = dataset.find((d) => d.total === peakExpense)?.year
 
+  const totalIncome = (main.annualSalary ?? 0) + (partner.annualSalary ?? 0) + (passiveIncome ?? 0)
+  const netIncome = Math.floor(totalIncome * 0.75)
+
   // グラフの幅をデータ数（年度数）に応じて計算
   const chartWidth = Math.max(800, dataset.length * 40)
 
@@ -124,6 +134,17 @@ export default function Results() {
               </Typography>
             </CardContent>
           </Card>
+          <Card sx={{ flex: 1 }}>
+            <CardContent>
+              <Typography variant="overline">世帯年間合計収入（額面）</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                {formatCurrency(totalIncome)} 万円
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                手取り額（推定）: {formatCurrency(netIncome)} 万円
+              </Typography>
+            </CardContent>
+          </Card>
         </Stack>
 
         <Card sx={{ borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
@@ -148,11 +169,19 @@ export default function Results() {
                           <LineChart
                             dataset={dataset}
                             height={550}
-                            margin={{ top: 40, right: 20, bottom: 100, left: 100 }}
+                            margin={{ top: 40, right: 20, bottom: 100, left: 40 }}
                             xAxis={[
                               {
                                 dataKey: 'year',
-                                valueFormatter: (v: number) => `${v}年`
+                                valueFormatter: (year: number, context: AxisValueFormatterContext) => {
+                                  if (context?.location === 'tick') return `${year}年`
+                                  const datum = dataset.find((d) => d.year === year)
+                                  if (datum && datum.memberAges.length > 0) {
+                                    const ages = datum.memberAges.map((ma) => `${ma.name}: ${ma.age}歳`).join(' / ')
+                                    return `${year}年 (${ages})`
+                                  }
+                                  return `${year}年`
+                                }
                               }
                             ]}
                             yAxis={[
@@ -184,12 +213,18 @@ export default function Results() {
                         <Box sx={{ overflowX: 'auto', display: 'flex', gap: 3, pb: 2 }}>
                           {Array.from({ length: Math.ceil(dataset.length / 10) }).map((_, i) => {
                             const chunk = dataset.slice(i * 10, i * 10 + 10)
+                            const initialAssets =
+                              (assets.bankSavings ?? 0) +
+                              (assets.nisa ?? 0) +
+                              (assets.ideco ?? 0) +
+                              (assets.otherInvestments ?? 0)
+
                             return (
                               <TableContainer
                                 key={i}
                                 component={Paper}
                                 variant="outlined"
-                                sx={{ minWidth: 180, maxWidth: 220, borderRadius: 2 }}
+                                sx={{ minWidth: 220, maxWidth: 280, borderRadius: 2 }}
                               >
                                 <Table size="small">
                                   <TableHead>
@@ -198,19 +233,42 @@ export default function Results() {
                                       <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                                         残高
                                       </TableCell>
+                                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                                        前年度比
+                                      </TableCell>
                                     </TableRow>
                                   </TableHead>
                                   <TableBody>
-                                    {chunk.map((d) => (
-                                      <TableRow key={d.year} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                                        <TableCell sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>
-                                          {d.year}年
-                                        </TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: 'medium' }}>
-                                          {Math.floor(d.balance).toLocaleString()}
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
+                                    {chunk.map((d, indexInChunk) => {
+                                      const absoluteIndex = i * 10 + indexInChunk
+                                      const prevBalance =
+                                        absoluteIndex > 0 ? dataset[absoluteIndex - 1].balance : initialAssets
+                                      const diff = Math.floor(d.balance - prevBalance)
+
+                                      return (
+                                        <TableRow
+                                          key={d.year}
+                                          sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                                        >
+                                          <TableCell sx={{ color: 'text.secondary', fontSize: '0.8rem', p: 0.5 }}>
+                                            {d.year}年
+                                          </TableCell>
+                                          <TableCell align="right" sx={{ fontWeight: 'medium', p: 0.5 }}>
+                                            {Math.floor(d.balance).toLocaleString()}
+                                          </TableCell>
+                                          <TableCell
+                                            align="right"
+                                            sx={{
+                                              p: 0.5,
+                                              fontSize: '0.8rem',
+                                              color: diff >= 0 ? 'success.main' : 'error.main'
+                                            }}
+                                          >
+                                            {diff > 0 ? `+${diff.toLocaleString()}` : diff.toLocaleString()}
+                                          </TableCell>
+                                        </TableRow>
+                                      )
+                                    })}
                                   </TableBody>
                                 </Table>
                               </TableContainer>
@@ -226,18 +284,102 @@ export default function Results() {
                         <BarChart
                           dataset={dataset}
                           height={550}
-                          margin={{ top: 40, right: 20, bottom: 100, left: 100 }}
+                          margin={{ top: 40, right: 20, bottom: 100, left: 40 }}
                           xAxis={[
                             {
                               dataKey: 'year',
                               scaleType: 'band',
-                              valueFormatter: (v: number) => `${v}年`
+                              valueFormatter: (year: number, context: AxisValueFormatterContext) => {
+                                if (context?.location === 'tick') return `${year}年`
+                                const datum = dataset.find((d) => d.year === year)
+                                if (datum && datum.memberAges.length > 0) {
+                                  const ages = datum.memberAges.map((ma) => `${ma.name}: ${ma.age}歳`).join(' / ')
+                                  return `${year}年 (${ages})`
+                                }
+                                return `${year}年`
+                              }
                             }
                           ]}
-                          yAxis={[{ label: '収支 (万円)', valueFormatter: (v: number) => `${v.toLocaleString()}万` }]}
+                          yAxis={[
+                            { label: '収支 (万円)', valueFormatter: (v: number) => `${(v / 10000).toLocaleString()}万` }
+                          ]}
                           series={[
-                            { dataKey: 'income', label: '収入', color: COLORS.income },
-                            { dataKey: 'total', label: '支出', color: COLORS.rentalRenewal }
+                            {
+                              dataKey: 'income',
+                              label: '収入(手取り)',
+                              color: COLORS.income,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'rentalBase',
+                              label: '家賃',
+                              stack: 'expense',
+                              color: COLORS.rentalBase,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'rentalRenewal',
+                              label: '更新料',
+                              stack: 'expense',
+                              color: COLORS.rentalRenewal,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'ownSingle',
+                              label: '住宅ローン',
+                              stack: 'expense',
+                              color: COLORS.ownSingle,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'ownMain',
+                              label: 'ペアローン(主)',
+                              stack: 'expense',
+                              color: COLORS.ownMain,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'ownPartner',
+                              label: 'ペアローン(副)',
+                              stack: 'expense',
+                              color: COLORS.ownPartner,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'homeMaintenance',
+                              label: '住宅維持費',
+                              stack: 'expense',
+                              color: COLORS.homeMaintenance,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'childExpense',
+                              label: '子教育費',
+                              stack: 'expense',
+                              color: COLORS.childExpense,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'carExpense',
+                              label: '車両費',
+                              stack: 'expense',
+                              color: COLORS.carExpense,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'livingExpense',
+                              label: '生活費',
+                              stack: 'expense',
+                              color: COLORS.livingExpense,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'otherExpense',
+                              label: 'その他',
+                              stack: 'expense',
+                              color: COLORS.otherExpense,
+                              valueFormatter: chartValueFormatter
+                            }
                           ]}
                           slotProps={{
                             legend: {
@@ -255,26 +397,96 @@ export default function Results() {
                         <BarChart
                           dataset={dataset}
                           height={550}
-                          margin={{ top: 40, right: 20, bottom: 100, left: 100 }}
+                          margin={{ top: 40, right: 20, bottom: 100, left: 40 }}
                           xAxis={[
                             {
                               dataKey: 'year',
                               scaleType: 'band',
-                              valueFormatter: (v: number) => `${v}年`
+                              valueFormatter: (year: number, context: AxisValueFormatterContext) => {
+                                if (context?.location === 'tick') return `${year}年`
+                                const datum = dataset.find((d) => d.year === year)
+                                if (datum && datum.memberAges.length > 0) {
+                                  const ages = datum.memberAges.map((ma) => `${ma.name}: ${ma.age}歳`).join(' / ')
+                                  return `${year}年 (${ages})`
+                                }
+                                return `${year}年`
+                              }
                             }
                           ]}
-                          yAxis={[{ label: '支出 (万円)', valueFormatter: (v: number) => `${v.toLocaleString()}万` }]}
+                          yAxis={[
+                            { label: '支出 (万円)', valueFormatter: (v: number) => `${(v / 10000).toLocaleString()}万` }
+                          ]}
                           series={[
-                            { dataKey: 'rentalBase', label: '家賃', stack: 'a', color: COLORS.rentalBase },
-                            { dataKey: 'rentalRenewal', label: '更新料', stack: 'a', color: COLORS.rentalRenewal },
-                            { dataKey: 'ownSingle', label: '住宅ローン', stack: 'a', color: COLORS.ownSingle },
-                            { dataKey: 'ownMain', label: 'ペアローン(主)', stack: 'a', color: COLORS.ownMain },
-                            { dataKey: 'ownPartner', label: 'ペアローン(副)', stack: 'a', color: COLORS.ownPartner },
-                            { dataKey: 'homeMaintenance', label: '維持費', stack: 'a', color: COLORS.homeMaintenance },
-                            { dataKey: 'childExpense', label: '子教育費', stack: 'a', color: COLORS.childExpense },
-                            { dataKey: 'carExpense', label: '車両費', stack: 'a', color: COLORS.carExpense },
-                            { dataKey: 'livingExpense', label: '生活費', stack: 'a', color: COLORS.livingExpense },
-                            { dataKey: 'otherExpense', label: 'その他', stack: 'a', color: COLORS.otherExpense }
+                            {
+                              dataKey: 'rentalBase',
+                              label: '家賃',
+                              stack: 'a',
+                              color: COLORS.rentalBase,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'rentalRenewal',
+                              label: '更新料',
+                              stack: 'a',
+                              color: COLORS.rentalRenewal,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'ownSingle',
+                              label: '住宅ローン',
+                              stack: 'a',
+                              color: COLORS.ownSingle,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'ownMain',
+                              label: 'ペアローン(主)',
+                              stack: 'a',
+                              color: COLORS.ownMain,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'ownPartner',
+                              label: 'ペアローン(副)',
+                              stack: 'a',
+                              color: COLORS.ownPartner,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'homeMaintenance',
+                              label: '住宅維持費',
+                              stack: 'a',
+                              color: COLORS.homeMaintenance,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'childExpense',
+                              label: '子教育費',
+                              stack: 'a',
+                              color: COLORS.childExpense,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'carExpense',
+                              label: '車両費',
+                              stack: 'a',
+                              color: COLORS.carExpense,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'livingExpense',
+                              label: '生活費',
+                              stack: 'a',
+                              color: COLORS.livingExpense,
+                              valueFormatter: chartValueFormatter
+                            },
+                            {
+                              dataKey: 'otherExpense',
+                              label: 'その他',
+                              stack: 'a',
+                              color: COLORS.otherExpense,
+                              valueFormatter: chartValueFormatter
+                            }
                           ]}
                           slotProps={{
                             legend: {

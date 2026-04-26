@@ -41,25 +41,15 @@ function formatAge(age: number | null, relationship: string) {
   }
 
   if (age < 0 && canUseFutureAge(relationship)) {
-    return relationship === 'child'
-      ? `${Math.abs(age)}年後に生まれる想定`
-      : `${Math.abs(age)}年後に迎える想定`
+    return relationship === 'child' ? `${Math.abs(age)}年後に生まれる想定` : `${Math.abs(age)}年後に迎える想定`
   }
 
   return `${age}歳`
 }
 
 export default function Family() {
-  const {
-    people,
-    draft,
-    editingPersonId,
-    updateDraft,
-    saveDraftPerson,
-    editPerson,
-    deletePerson,
-    resetDraft
-  } = useFamilyStore()
+  const { people, draft, editingPersonId, updateDraft, saveDraftPerson, editPerson, deletePerson, resetDraft } =
+    useFamilyStore()
 
   const sortedPeople = [...people.entries()].sort(([a], [b]) => a - b)
   const isDraftValid = draft.name.trim() !== '' && draft.relationship !== ''
@@ -131,17 +121,10 @@ export default function Family() {
                     label="年齢"
                     value={draft.age ?? 0}
                     min={allowFutureAge ? undefined : 0}
-                    helperText={
-                      allowFutureAge ? 'マイナスなら未来に生まれる・迎える想定として扱います。' : undefined
-                    }
+                    helperText={allowFutureAge ? 'マイナスなら未来に生まれる・迎える想定として扱います。' : undefined}
                     onValueChange={(value) => {
                       updateDraft({
-                        age:
-                          value === null
-                            ? null
-                            : allowFutureAge
-                              ? Number(value)
-                              : Math.max(0, Number(value))
+                        age: value === null ? null : allowFutureAge ? Number(value) : Math.max(0, Number(value))
                       })
                     }}
                   />
@@ -159,28 +142,32 @@ export default function Family() {
             </CardContent>
           </Card>
 
-          {sortedPeople.map(([personId, person]) => (
-            <Card key={personId} variant="outlined">
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
-                  <Box>
-                    <Typography>{formatRelationship(person.relationship)}</Typography>
-                    <Typography>{person.name || '-'}</Typography>
-                    <Typography>{formatAge(person.age, person.relationship)}</Typography>
-                  </Box>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 2 }}>
+            {sortedPeople.map(([personId, person]) => (
+              <Box>
+                <Card key={personId} variant="outlined">
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                      <Box>
+                        <Typography>{formatRelationship(person.relationship)}</Typography>
+                        <Typography>{person.name || '-'}</Typography>
+                        <Typography>{formatAge(person.age, person.relationship)}</Typography>
+                      </Box>
 
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <IconButton aria-label="edit" onClick={() => editPerson(personId)}>
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton aria-label="delete" onClick={() => deletePerson(personId)}>
-                      <DeleteIcon />
-                    </IconButton>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          ))}
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <IconButton aria-label="edit" onClick={() => editPerson(personId)}>
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton aria-label="delete" onClick={() => deletePerson(personId)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Box>
+            ))}
+          </Box>
         </Stack>
 
         <Button variant="contained" sx={{ marginTop: 2 }} href="/expense/home">

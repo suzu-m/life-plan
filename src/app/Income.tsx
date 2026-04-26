@@ -50,13 +50,26 @@ const MemberIncomeForm = ({
               </Select>
             </FormControl>
 
-            <NumberField
-              label="年収（額面/万円）"
-              value={data.annualSalary ?? 0}
-              min={0}
-              width={200}
-              onValueChange={(value) => onChange({ annualSalary: value === null ? null : Number(value) })}
-            />
+            <Box>
+              <NumberField
+                label="年収（額面/万円）"
+                value={data.annualSalary ?? 0}
+                min={0}
+                width={200}
+                onValueChange={(value) => onChange({ annualSalary: value === null ? null : Number(value) })}
+              />
+              {data.annualSalary !== null && data.annualSalary > 0 && (
+                <>
+                  <Typography
+                    variant="caption"
+                    sx={{ display: 'block', mt: 0.5, color: 'text.secondary', fontWeight: 'bold' }}
+                  >
+                    手取り推定: {Math.floor(data.annualSalary * 0.75).toLocaleString()} 万円
+                    <br />
+                  </Typography>
+                </>
+              )}
+            </Box>
 
             {data.occupation === 'employee' && (
               <>
@@ -170,6 +183,16 @@ const MemberIncomeForm = ({
                   >
                     <DeleteIcon fontSize="small" />
                   </IconButton>
+                  <Box sx={{ width: '100%', mt: 0.5 }}>
+                    <Typography variant="caption" color="primary" sx={{ fontWeight: 'bold' }}>
+                      期間中月額目安: {Math.floor(((data.annualSalary || 0) / 12) * (period.rate / 100)).toLocaleString()} 万円
+                      / その年の合計年収目安:{' '}
+                      {Math.floor(
+                        ((data.annualSalary || 0) / 12) * (12 - period.months + period.months * (period.rate / 100))
+                      ).toLocaleString()}{' '}
+                      万円
+                    </Typography>
+                  </Box>
                 </Box>
               ))}
               <Button
@@ -179,8 +202,7 @@ const MemberIncomeForm = ({
                 sx={{ alignSelf: 'flex-start' }}
                 onClick={() => {
                   const periods = data.leavePeriods ?? []
-                  const newId =
-                    periods.length > 0 ? Math.max(...periods.map((p) => p.id)) + 1 : 0
+                  const newId = periods.length > 0 ? Math.max(...periods.map((p) => p.id)) + 1 : 0
                   const currentYear = new Date().getFullYear()
                   const next = [...periods, { id: newId, year: currentYear, months: 12, rate: 67 }]
                   onChange({ leavePeriods: next })
@@ -205,7 +227,9 @@ const MemberIncomeForm = ({
                     width={100}
                     onValueChange={(val) => {
                       const next = (data.shortTimePeriods ?? []).map((p) =>
-                        p.id === period.id ? { ...p, startYear: val === null ? new Date().getFullYear() : Number(val) } : p
+                        p.id === period.id
+                          ? { ...p, startYear: val === null ? new Date().getFullYear() : Number(val) }
+                          : p
                       )
                       onChange({ shortTimePeriods: next })
                     }}
@@ -218,7 +242,9 @@ const MemberIncomeForm = ({
                     width={100}
                     onValueChange={(val) => {
                       const next = (data.shortTimePeriods ?? []).map((p) =>
-                        p.id === period.id ? { ...p, endYear: val === null ? new Date().getFullYear() : Number(val) } : p
+                        p.id === period.id
+                          ? { ...p, endYear: val === null ? new Date().getFullYear() : Number(val) }
+                          : p
                       )
                       onChange({ shortTimePeriods: next })
                     }}
@@ -248,6 +274,12 @@ const MemberIncomeForm = ({
                   >
                     <DeleteIcon fontSize="small" />
                   </IconButton>
+                  <Box sx={{ width: '100%', mt: 0.5 }}>
+                    <Typography variant="caption" color="primary" sx={{ fontWeight: 'bold' }}>
+                      時短中月額目安: {Math.floor(((data.annualSalary || 0) / 12) * (period.rate / 100)).toLocaleString()} 万円
+                      / 時短中年収目安: {Math.floor((data.annualSalary || 0) * (period.rate / 100)).toLocaleString()} 万円
+                    </Typography>
+                  </Box>
                 </Box>
               ))}
               <Button
@@ -257,8 +289,7 @@ const MemberIncomeForm = ({
                 sx={{ alignSelf: 'flex-start' }}
                 onClick={() => {
                   const periods = data.shortTimePeriods ?? []
-                  const newId =
-                    periods.length > 0 ? Math.max(...periods.map((p) => p.id)) + 1 : 0
+                  const newId = periods.length > 0 ? Math.max(...periods.map((p) => p.id)) + 1 : 0
                   const currentYear = new Date().getFullYear()
                   const next = [...periods, { id: newId, startYear: currentYear, endYear: currentYear + 1, rate: 80 }]
                   onChange({ shortTimePeriods: next })
@@ -316,6 +347,15 @@ export default function Income() {
               <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>
                 (本人: {main.annualSalary ?? 0}万 + 配偶者: {partner.annualSalary ?? 0}万 + 不労所得:{' '}
                 {passiveIncome ?? 0}万)
+              </Typography>
+              <Typography
+                variant="subtitle2"
+                sx={{ mt: 1.5, fontWeight: 'bold', borderTop: '1px solid rgba(255,255,255,0.2)', pt: 1.5 }}
+              >
+                手取り推定合計: {Math.floor(yearlyTotal * 0.75).toLocaleString()} 万円 / 年
+              </Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                ※額面に対して75%が手取りとして計算されます
               </Typography>
             </CardContent>
           </Card>

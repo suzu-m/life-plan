@@ -22,6 +22,7 @@ export type SimulationChartDatum = {
   income: number
   balance: number
   total: number
+  memberAges: { name: string; age: number }[]
 }
 
 const CURRENT_YEAR = new Date().getFullYear()
@@ -247,8 +248,19 @@ export const buildSimulationData = (
       otherExpense: 0,
       income: 0,
       balance: 0,
-      total: 0
+      total: 0,
+      memberAges: []
     }
+
+    people.forEach((p) => {
+      if (p.age !== null) {
+        const ageInYear = year - (CURRENT_YEAR - p.age)
+        datum.memberAges.push({
+          name: p.name || (p.relationship === 'myself' ? '本人' : p.relationship === 'spouse' ? '配偶者' : '子'),
+          age: ageInYear
+        })
+      }
+    })
 
     homePlans.forEach((plan) => {
       if (!plan.fromYear || !plan.toYear || year < plan.fromYear || year > plan.toYear) return
@@ -335,24 +347,39 @@ export const buildSimulationData = (
       datum.otherExpense
 
     // 収入計算
-    let yearlyIncome = (incomeData.passiveIncome ?? 0) * 12 * 10_000
+    let yearlyNetIncome = (incomeData.passiveIncome ?? 0) * 10_000
+    
     if (myself) {
-      yearlyIncome += calculateMemberSalaryForYear(myself, incomeData.main, year) * 10_000
-      yearlyIncome += calculateMemberRetirementAllowanceForYear(myself, incomeData.main, year) * 10_000
+      // 給与収入（手取り換算 0.75）
+      const salary = calculateMemberSalaryForYear(myself, incomeData.main, year) * 10_000
+      yearlyNetIncome += Math.floor(salary * 0.75)
+      
+      // 退職金（100%）
+      yearlyNetIncome += calculateMemberRetirementAllowanceForYear(myself, incomeData.main, year) * 10_000
+      
+      // 年金（100%）
       const myAge = year - (CURRENT_YEAR - myself.age!)
       if (myAge >= retirementPlan.selfPensionStartAge) {
-        yearlyIncome += retirementPlan.selfPensionMonthly * 12 * 10_000
+        yearlyNetIncome += retirementPlan.selfPensionMonthly * 12 * 10_000
       }
     }
+    
     if (spouse) {
-      yearlyIncome += calculateMemberSalaryForYear(spouse, incomeData.partner, year) * 10_000
-      yearlyIncome += calculateMemberRetirementAllowanceForYear(spouse, incomeData.partner, year) * 10_000
+      // 給与収入（手取り換算 0.75）
+      const salary = calculateMemberSalaryForYear(spouse, incomeData.partner, year) * 10_000
+      yearlyNetIncome += Math.floor(salary * 0.75)
+      
+      // 退職金（100%）
+      yearlyNetIncome += calculateMemberRetirementAllowanceForYear(spouse, incomeData.partner, year) * 10_000
+      
+      // 年金（100%）
       const spouseAge = year - (CURRENT_YEAR - spouse.age!)
       if (spouseAge >= retirementPlan.spousePensionStartAge) {
-        yearlyIncome += retirementPlan.spousePensionMonthly * 12 * 10_000
+        yearlyNetIncome += retirementPlan.spousePensionMonthly * 12 * 10_000
       }
     }
-    datum.income = yearlyIncome
+    
+    datum.income = yearlyNetIncome
 
     currentBalance += (datum.income - datum.total) / 10_000
     datum.balance = currentBalance
