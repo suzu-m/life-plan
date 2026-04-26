@@ -60,6 +60,11 @@ export default function Results() {
   const { main, partner, assets, passiveIncome } = useIncomeStore()
   const retirementData = useRetirementStore()
 
+  const myself = React.useMemo(() => Array.from(people.values()).find((p) => p.relationship === 'myself'), [people])
+  const spouse = React.useMemo(() => Array.from(people.values()).find((p) => p.relationship === 'spouse'), [people])
+  const ownMainLabel = myself?.name ? `ペアローン(主: ${myself.name})` : 'ペアローン(主)'
+  const ownPartnerLabel = spouse?.name ? `ペアローン(副: ${spouse.name})` : 'ペアローン(副)'
+
   const [tabValue, setTabValue] = React.useState(0)
   const dataset = React.useMemo(
     () =>
@@ -333,14 +338,14 @@ export default function Results() {
                             },
                             {
                               dataKey: 'ownMain',
-                              label: 'ペアローン(主)',
+                              label: ownMainLabel,
                               stack: 'expense',
                               color: COLORS.ownMain,
                               valueFormatter: chartValueFormatter
                             },
                             {
                               dataKey: 'ownPartner',
-                              label: 'ペアローン(副)',
+                              label: ownPartnerLabel,
                               stack: 'expense',
                               color: COLORS.ownPartner,
                               valueFormatter: chartValueFormatter
@@ -440,14 +445,14 @@ export default function Results() {
                             },
                             {
                               dataKey: 'ownMain',
-                              label: 'ペアローン(主)',
+                              label: ownMainLabel,
                               stack: 'a',
                               color: COLORS.ownMain,
                               valueFormatter: chartValueFormatter
                             },
                             {
                               dataKey: 'ownPartner',
-                              label: 'ペアローン(副)',
+                              label: ownPartnerLabel,
                               stack: 'a',
                               color: COLORS.ownPartner,
                               valueFormatter: chartValueFormatter
