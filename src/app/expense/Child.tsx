@@ -10,11 +10,18 @@ import Select, { type SelectChangeEvent } from '@mui/material/Select'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
 import DeleteIcon from '@mui/icons-material/Delete'
 import Navi from '@/components/common/Navi'
 import NumberField from '@/components/common/NumberField'
 import { useFamilyStore } from '@/store/useFamilyStore'
 import { useChildStore, type ChildExpensePlan, type EarlyEducationType, type SchoolType } from '@/store/useChildStore'
+import HelpIcon from '@mui/icons-material/Help'
+import { useState } from 'react'
+
+type HintType = 'earlyEducation' | 'elementarySchool' | 'juniorHighSchool' | 'highSchool' | 'higherEducation'
 
 const SCHOOL_OPTIONS: Array<{ value: SchoolType; label: string }> = [
   { value: 'public', label: '公立' },
@@ -64,7 +71,7 @@ function formatAgeLabel(age: number | null) {
   return `${age}歳`
 }
 
-function ChildSchoolSelect({
+const ChildSchoolSelect = ({
   label,
   value,
   onChange
@@ -72,9 +79,9 @@ function ChildSchoolSelect({
   label: string
   value: SchoolType
   onChange: (value: SchoolType) => void
-}) {
+}) => {
   return (
-    <FormControl sx={{ minWidth: 160 }}>
+    <FormControl sx={{ minWidth: 150, width: 150 }}>
       <InputLabel>{label}</InputLabel>
       <Select value={value} label={label} onChange={(e: SelectChangeEvent) => onChange(e.target.value as SchoolType)}>
         {SCHOOL_OPTIONS.map((option) => (
@@ -84,6 +91,28 @@ function ChildSchoolSelect({
         ))}
       </Select>
     </FormControl>
+  )
+}
+
+const HintDialog = (props: { open: boolean; onClose: () => void; type: HintType }) => {
+  const { onClose, open } = props
+
+  const handleClose = () => {
+    onClose()
+  }
+
+  return (
+    <Dialog onClose={handleClose} open={open}>
+      <DialogTitle>費用の目安</DialogTitle>
+      <DialogContent sx={{ width: 400, height: 300 }}>
+        <Typography> TODO: 費用の目安を表示する </Typography>
+        {props.type === 'earlyEducation' && '幼少期の進路の説明'}
+        {props.type === 'elementarySchool' && '小学校の進路の説明'}
+        {props.type === 'juniorHighSchool' && '中学校の進路の説明'}
+        {props.type === 'highSchool' && '高校の進路の説明'}
+        {props.type === 'higherEducation' && '大学の進路の説明'}
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -97,6 +126,17 @@ export default function ExpenseChild() {
   const updateLifeEvent = useChildStore((state) => state.updateLifeEvent)
   const addLifeEvent = useChildStore((state) => state.addLifeEvent)
   const deleteLifeEvent = useChildStore((state) => state.deleteLifeEvent)
+  const [open, setOpen] = useState(false)
+  const [hintType, setHintType] = useState<HintType>('earlyEducation')
+
+  const handleClickOpen = (type: HintType) => {
+    setHintType(type)
+    setOpen(true)
+  }
+
+  const handleClose = () => {
+    setOpen(false)
+  }
 
   return (
     <Box sx={{ width: '100%', display: 'flex' }}>
@@ -142,8 +182,13 @@ export default function ExpenseChild() {
                       {/* 幼少期の進路は保育園か幼稚園のどちらかを選ぶ前提で保持する。 */}
                       <Stack spacing={3} sx={{ marginBottom: 1 }}>
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <Typography sx={{ width: 80, fontWeight: 'bold' }}>幼少期</Typography>
-                          <FormControl sx={{ minWidth: 160 }}>
+                          <Typography sx={{ width: 100, fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                            幼少期{' '}
+                            <IconButton onClick={() => handleClickOpen('earlyEducation')}>
+                              <HelpIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Typography>
+                          <FormControl sx={{ minWidth: 150 }}>
                             <InputLabel>進学先</InputLabel>
                             <Select
                               label="進学先"
@@ -214,7 +259,7 @@ export default function ExpenseChild() {
                                 label="習い事（年額/万円）"
                                 value={plan.earlyEducationLessonsAmount ?? 0}
                                 min={0}
-                                width={200}
+                                width={180}
                                 onValueChange={(value) =>
                                   updatePlan(personId, {
                                     earlyEducationLessonsAmount: value === null ? null : Number(value)
@@ -228,7 +273,12 @@ export default function ExpenseChild() {
 
                       <Stack spacing={3}>
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <Typography sx={{ width: 80, fontWeight: 'bold' }}>小学校</Typography>
+                          <Typography sx={{ width: 100, fontWeight: 'bold' }}>
+                            小学校
+                            <IconButton onClick={() => handleClickOpen('elementarySchool')}>
+                              <HelpIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Typography>
                           <ChildSchoolSelect
                             label="進学先"
                             value={plan.elementarySchoolType}
@@ -238,6 +288,7 @@ export default function ExpenseChild() {
                             label="学費（年額/万円）"
                             value={plan.elementaryTuitionAmount ?? 0}
                             min={0}
+                            width={180}
                             onValueChange={(value) =>
                               updatePlan(personId, {
                                 elementaryTuitionAmount: value === null ? null : Number(value)
@@ -248,7 +299,7 @@ export default function ExpenseChild() {
                             label="習い事（年額/万円）"
                             value={plan.elementaryLessonsAmount ?? 0}
                             min={0}
-                            width={200}
+                            width={180}
                             onValueChange={(value) =>
                               updatePlan(personId, {
                                 elementaryLessonsAmount: value === null ? null : Number(value)
@@ -259,7 +310,7 @@ export default function ExpenseChild() {
                             label="お小遣い（年額/万円）"
                             value={plan.elementaryAllowanceAmount ?? 0}
                             min={0}
-                            width={200}
+                            width={180}
                             onValueChange={(value) =>
                               updatePlan(personId, {
                                 elementaryAllowanceAmount: value === null ? null : Number(value)
@@ -269,7 +320,12 @@ export default function ExpenseChild() {
                         </Box>
 
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <Typography sx={{ width: 80, fontWeight: 'bold' }}>中学校</Typography>
+                          <Typography sx={{ width: 100, fontWeight: 'bold' }}>
+                            中学校
+                            <IconButton onClick={() => handleClickOpen('juniorHighSchool')}>
+                              <HelpIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Typography>
                           <ChildSchoolSelect
                             label="進学先"
                             value={plan.juniorHighSchoolType}
@@ -279,6 +335,7 @@ export default function ExpenseChild() {
                             label="学費（年額/万円）"
                             value={plan.juniorHighTuitionAmount ?? 0}
                             min={0}
+                            width={180}
                             onValueChange={(value) =>
                               updatePlan(personId, {
                                 juniorHighTuitionAmount: value === null ? null : Number(value)
@@ -289,7 +346,7 @@ export default function ExpenseChild() {
                             label="習い事（年額/万円）"
                             value={plan.juniorHighLessonsAmount ?? 0}
                             min={0}
-                            width={200}
+                            width={180}
                             onValueChange={(value) =>
                               updatePlan(personId, {
                                 juniorHighLessonsAmount: value === null ? null : Number(value)
@@ -300,7 +357,7 @@ export default function ExpenseChild() {
                             label="お小遣い（年額/万円）"
                             value={plan.juniorHighAllowanceAmount ?? 0}
                             min={0}
-                            width={200}
+                            width={180}
                             onValueChange={(value) =>
                               updatePlan(personId, {
                                 juniorHighAllowanceAmount: value === null ? null : Number(value)
@@ -310,7 +367,12 @@ export default function ExpenseChild() {
                         </Box>
 
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <Typography sx={{ width: 80, fontWeight: 'bold' }}>高校</Typography>
+                          <Typography sx={{ width: 100, fontWeight: 'bold' }}>
+                            高校
+                            <IconButton onClick={() => handleClickOpen('highSchool')}>
+                              <HelpIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Typography>
                           <ChildSchoolSelect
                             label="進学先"
                             value={plan.highSchoolType}
@@ -320,6 +382,7 @@ export default function ExpenseChild() {
                             label="学費（年額/万円）"
                             value={plan.highSchoolTuitionAmount ?? 0}
                             min={0}
+                            width={180}
                             onValueChange={(value) =>
                               updatePlan(personId, {
                                 highSchoolTuitionAmount: value === null ? null : Number(value)
@@ -330,7 +393,7 @@ export default function ExpenseChild() {
                             label="習い事（年額/万円）"
                             value={plan.highSchoolLessonsAmount ?? 0}
                             min={0}
-                            width={200}
+                            width={180}
                             onValueChange={(value) =>
                               updatePlan(personId, {
                                 highSchoolLessonsAmount: value === null ? null : Number(value)
@@ -341,7 +404,7 @@ export default function ExpenseChild() {
                             label="お小遣い（年額/万円）"
                             value={plan.highSchoolAllowanceAmount ?? 0}
                             min={0}
-                            width={200}
+                            width={180}
                             onValueChange={(value) =>
                               updatePlan(personId, {
                                 highSchoolAllowanceAmount: value === null ? null : Number(value)
@@ -353,8 +416,13 @@ export default function ExpenseChild() {
 
                       <Stack spacing={3} sx={{ marginTop: 3, marginBottom: 4 }}>
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <Typography sx={{ width: 80, fontWeight: 'bold' }}>高等教育</Typography>
-                          <FormControl sx={{ minWidth: 160 }}>
+                          <Typography sx={{ width: 100, fontWeight: 'bold' }}>
+                            高等教育
+                            <IconButton onClick={() => handleClickOpen('higherEducation')}>
+                              <HelpIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Typography>
+                          <FormControl sx={{ minWidth: 150 }}>
                             <InputLabel>進学先</InputLabel>
                             <Select
                               value={plan.higherEducationType}
@@ -389,6 +457,7 @@ export default function ExpenseChild() {
                                 label="学費（年額/万円）"
                                 value={plan.higherEducationTuitionAmount ?? 0}
                                 min={0}
+                                width={180}
                                 onValueChange={(value) =>
                                   updatePlan(personId, {
                                     higherEducationTuitionAmount: value === null ? null : Number(value)
@@ -399,7 +468,7 @@ export default function ExpenseChild() {
                                 label="習い事（年額/万円）"
                                 value={plan.higherEducationLessonsAmount ?? 0}
                                 min={0}
-                                width={200}
+                                width={180}
                                 onValueChange={(value) =>
                                   updatePlan(personId, {
                                     higherEducationLessonsAmount: value === null ? null : Number(value)
@@ -480,6 +549,8 @@ export default function ExpenseChild() {
           </Stack>
         )}
       </Box>
+
+      <HintDialog open={open} onClose={handleClose} type={hintType} />
     </Box>
   )
 }

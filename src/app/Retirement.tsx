@@ -8,12 +8,17 @@ import Navi from '@/components/common/Navi'
 import NumberField from '@/components/common/NumberField'
 import { useRetirementStore } from '@/store/useRetirementStore'
 
+import { useFamilyStore } from '@/store/useFamilyStore'
+
 /**
  * 老後設定画面
  * 年金受給額や受給開始年齢、老後の生活費を設定する
  */
 const Retirement = () => {
   const plan = useRetirementStore()
+  const people = useFamilyStore((state) => state.people)
+  const myself = Array.from(people.values()).find((p) => p.relationship === 'myself')
+  const spouse = Array.from(people.values()).find((p) => p.relationship === 'spouse')
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'grey.50' }}>
@@ -41,7 +46,7 @@ const Retirement = () => {
                 <Stack spacing={4}>
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 2, color: 'primary.main', fontWeight: 'bold' }}>
-                      本人
+                      本人 {myself?.name ? `(${myself.name})` : ''}
                     </Typography>
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
                       <NumberField
@@ -67,7 +72,7 @@ const Retirement = () => {
 
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 2, color: 'secondary.main', fontWeight: 'bold' }}>
-                      配偶者
+                      配偶者 {spouse?.name ? `(${spouse.name})` : ''}
                     </Typography>
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
                       <NumberField

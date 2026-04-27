@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography'
 import NumberField from '@/components/common/NumberField'
 import type { LoanMode, OwnLoan, OwnPlanData, RateType, RepaymentType, BuildingType } from '@/store/useHomeStore'
 import { calculateMonthlyPayment } from '@/utils/loan'
+import { useFamilyStore } from '@/store/useFamilyStore'
 
 type OwnCardProps = {
   value: OwnPlanData
@@ -26,6 +27,20 @@ function formatAmount(amount: number | null) {
 }
 
 export default function OwnCard({ value, onLoanModeChange, onLoanChange, onOwnDetailsChange }: OwnCardProps) {
+  const { people } = useFamilyStore()
+  const myself = Array.from(people.values()).find((p) => p.relationship === 'myself')
+  const spouse = Array.from(people.values()).find((p) => p.relationship === 'spouse')
+
+  const getLoanDisplayName = (name: string) => {
+    if (name === '主債務者') {
+      return myself?.name ? `主債務者 (${myself.name})` : name
+    }
+    if (name === '配偶者') {
+      return spouse?.name ? `配偶者 (${spouse.name})` : name
+    }
+    return name
+  }
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <FormControl>
@@ -131,7 +146,7 @@ export default function OwnCard({ value, onLoanModeChange, onLoanChange, onOwnDe
           >
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                {loan.name}
+                {getLoanDisplayName(loan.name)}
               </Typography>
               <Box sx={{ textAlign: 'right' }}>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>

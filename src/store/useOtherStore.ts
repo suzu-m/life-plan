@@ -5,8 +5,9 @@ export type OtherExpense = {
   id: number
   title: string
   amount: number | null // 万円
-  frequency: number | null // 年数（0またはnullなら単発）
   startYear: number | null // 開始年
+  endYear: number | null // 終了年
+  frequency: number | null // 頻度（年おき、1なら毎年、0なら単発）
 }
 
 type OtherStore = {
@@ -26,8 +27,9 @@ const initialDraft: OtherExpense = {
   id: 0,
   title: '',
   amount: null,
-  frequency: null,
-  startYear: new Date().getFullYear()
+  startYear: new Date().getFullYear(),
+  endYear: null,
+  frequency: 1
 }
 
 /**

@@ -23,6 +23,12 @@ export type CarPlan = {
   carPrice: number | null // 車の総額（万円）
   downPayment: number | null // 頭金（万円）
   loanInterestRate: number | null // ローン利率（%）
+
+  // 入力モード（ざっくり/詳細）
+  inputMode: 'detailed' | 'rough'
+  roughMonthlyAmount: number | null
+  toYear: number | null
+  roughInitialCost: number | null
 }
 
 type CarStore = {
@@ -51,7 +57,11 @@ const initCar: CarPlan = {
   maintenanceYearlyAmount: null,
   carPrice: null,
   downPayment: null,
-  loanInterestRate: null
+  loanInterestRate: null,
+  inputMode: 'detailed',
+  roughMonthlyAmount: null,
+  toYear: null,
+  roughInitialCost: null
 }
 
 function cloneCar(car: CarPlan): CarPlan {

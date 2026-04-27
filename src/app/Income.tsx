@@ -14,6 +14,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import Navi from '@/components/common/Navi'
 import NumberField from '@/components/common/NumberField'
 import { useIncomeStore, type Occupation, type MemberIncome } from '@/store/useIncomeStore'
+import { useFamilyStore } from '@/store/useFamilyStore'
 
 /**
  * メンバーごとの収入入力フォーム
@@ -308,6 +309,9 @@ const MemberIncomeForm = ({
 export default function Income() {
   const { main, partner, assets, passiveIncome, updateMain, updatePartner, updateAssets, updatePassiveIncome, reset } =
     useIncomeStore()
+  const people = useFamilyStore((state) => state.people)
+  const myself = Array.from(people.values()).find((p) => p.relationship === 'myself')
+  const spouse = Array.from(people.values()).find((p) => p.relationship === 'spouse')
 
   // 世帯の年間合計収入の計算
   const yearlyTotal = (main.annualSalary ?? 0) + (partner.annualSalary ?? 0) + (passiveIncome ?? 0)
@@ -360,8 +364,8 @@ export default function Income() {
             </CardContent>
           </Card>
 
-          <MemberIncomeForm title="本人" data={main} onChange={updateMain} />
-          <MemberIncomeForm title="配偶者・パートナー" data={partner} onChange={updatePartner} />
+          <MemberIncomeForm title={`本人${myself?.name ? ` (${myself.name})` : ''}`} data={main} onChange={updateMain} />
+          <MemberIncomeForm title={`配偶者・パートナー${spouse?.name ? ` (${spouse.name})` : ''}`} data={partner} onChange={updatePartner} />
 
           <Card variant="outlined">
             <CardContent>

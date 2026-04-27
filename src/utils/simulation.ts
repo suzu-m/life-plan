@@ -66,7 +66,7 @@ export const calculateOwnLoanYearlyCost = (loan: OwnLoan, elapsedYears: number, 
  * 子どもの教育費を年度ごとに計算する
  */
 export const calculateChildExpenseForYear = (child: Person, plan: ChildExpensePlan, year: number): number => {
-  if (child.age === null) return 0
+  if (child.age === null || child.age === undefined || isNaN(child.age)) return 0
   const birthYear = CURRENT_YEAR - child.age
   const ageInYear = year - birthYear
   let totalMan = 0
@@ -105,31 +105,48 @@ export const calculateChildExpenseForYear = (child: Person, plan: ChildExpensePl
  * 車の費用を年度ごとに計算する
  */
 export const calculateCarExpenseForYear = (car: CarPlan, year: number): number => {
-  if (car.purchaseYear === null) return 0
+  if (car.purchaseYear === null || car.purchaseYear === undefined || isNaN(car.purchaseYear)) return 0
   const elapsedYears = year - car.purchaseYear
   if (elapsedYears < 0) return 0
 
+  // 終了年の判定
+  // roughToYear (現 toYear) が設定されていればそれを上限とする。
+  // 設定がない場合は詳細モードなら無制限、ざっくりモードなら購入年のみとする。
+  const endYear = car.toYear ?? (car.inputMode === 'detailed' ? 9999 : car.purchaseYear)
+  if (year > endYear) return 0
+
   let totalMan = 0
 
-  // 購入年に頭金を計上
-  if (elapsedYears === 0) {
-    totalMan += car.downPayment ?? 0
+  // 1. 購入・ローン関連費用の計算
+  if (car.inputMode === 'rough') {
+    // ざっくりパターンの場合
+    if (elapsedYears === 0) {
+      totalMan += car.roughInitialCost ?? 0
+    }
+    if (year <= endYear) {
+      totalMan += (car.roughMonthlyAmount ?? 0) * 12
+    }
+  } else {
+    // 詳細パターンの場合
+    if (elapsedYears === 0) {
+      totalMan += car.downPayment ?? 0
+    }
+
+    // ローン支払い
+    if ((car.loanPayments ?? 0) > 0 && (car.loanMonthlyAmount ?? 0) > 0) {
+      const remainingPayments = (car.loanPayments ?? 0) - elapsedYears * 12
+      if (remainingPayments > 0) totalMan += Math.min(12, remainingPayments) * (car.loanMonthlyAmount ?? 0)
+    }
+
+    // 残価精算（ローンの最終回と同じ年に発生すると仮定）
+    if ((car.zankureFinalAmount ?? 0) > 0) {
+      const finalPaymentYear = car.purchaseYear + Math.floor(((car.loanPayments ?? 0) - 1) / 12)
+      if (year === finalPaymentYear) totalMan += car.zankureFinalAmount ?? 0
+    }
   }
 
-  // 維持費（税金、保険など）
+  // 2. 維持費の計算（これは全モード共通、ただし設定された終了年まで）
   totalMan += (car.taxYearlyAmount ?? 0) + (car.maintenanceYearlyAmount ?? 0)
-
-  // ローン支払い
-  if ((car.loanPayments ?? 0) > 0 && (car.loanMonthlyAmount ?? 0) > 0) {
-    const remainingPayments = (car.loanPayments ?? 0) - elapsedYears * 12
-    if (remainingPayments > 0) totalMan += Math.min(12, remainingPayments) * (car.loanMonthlyAmount ?? 0)
-  }
-
-  // 残価精算（ローンの最終回と同じ年に発生すると仮定）
-  if ((car.zankureFinalAmount ?? 0) > 0) {
-    const finalPaymentYear = car.purchaseYear + Math.floor(((car.loanPayments ?? 0) - 1) / 12)
-    if (year === finalPaymentYear) totalMan += car.zankureFinalAmount ?? 0
-  }
 
   // 車検費用
   if (elapsedYears > 0 && (car.shakenAmount ?? 0) > 0) {
@@ -144,7 +161,7 @@ export const calculateCarExpenseForYear = (car: CarPlan, year: number): number =
  * 収入（給与）を年度ごとに計算する
  */
 export const calculateMemberSalaryForYear = (person: Person, incomeData: MemberIncome, year: number): number => {
-  if (person.age === null) return 0
+  if (person.age === null || person.age === undefined || isNaN(person.age)) return 0
   const birthYear = CURRENT_YEAR - person.age
   const ageInYear = year - birthYear
 
@@ -191,7 +208,7 @@ export const calculateMemberSalaryForYear = (person: Person, incomeData: MemberI
  * 退職金を年度ごとに計算する
  */
 export const calculateMemberRetirementAllowanceForYear = (person: Person, incomeData: MemberIncome, year: number): number => {
-  if (person.age === null) return 0
+  if (person.age === null || person.age === undefined || isNaN(person.age)) return 0
   const birthYear = CURRENT_YEAR - person.age
   const ageInYear = year - birthYear
   if (incomeData.occupation === 'employee' && ageInYear === (incomeData.retirementAge ?? 60)) {
@@ -204,9 +221,15 @@ export const calculateMemberRetirementAllowanceForYear = (person: Person, income
  * シミュレーションの期間を取得
  */
 export const getSimulationRange = (homePlans: HomePlan[], people: Map<number, Person>): { startYear: number; endYear: number } => {
-  const years = homePlans.flatMap((p) => [p.fromYear, p.toYear]).filter((y): y is number => y !== null)
+  const years = homePlans
+    .flatMap((p) => [p.fromYear, p.toYear])
+    .filter((y): y is number => typeof y === 'number' && !isNaN(y))
+    
   const myself = Array.from(people.values()).find((p) => p.relationship === 'myself')
-  const endYear = myself && myself.age !== null ? CURRENT_YEAR + (90 - myself.age) : CURRENT_YEAR + 50
+  const myselfAge = myself?.age
+  const validAge = typeof myselfAge === 'number' && !isNaN(myselfAge) ? myselfAge : null
+  
+  const endYear = validAge !== null ? CURRENT_YEAR + (90 - validAge) : CURRENT_YEAR + 50
   return { startYear: Math.min(CURRENT_YEAR, ...years), endYear }
 }
 
@@ -326,11 +349,20 @@ export const buildSimulationData = (
         10_000
 
     otherExpenses.forEach((expense) => {
-      if (expense.startYear === null || year < expense.startYear || expense.amount === null) return
-      const elapsed = year - expense.startYear
-      const isOccurring = expense.frequency && expense.frequency > 0 ? elapsed % expense.frequency === 0 : elapsed === 0
+      const start = expense.startYear
+      const end = expense.endYear
+      const amount = expense.amount
+      if (start === null || amount === null) return
+
+      // 開始年より前、または終了年（設定されている場合）より後は除外
+      if (year < start || (end !== null && year > end)) return
+
+      const elapsed = year - start
+      const freq = expense.frequency ?? 1
+
+      const isOccurring = freq > 0 ? elapsed % freq === 0 : elapsed === 0
       if (isOccurring) {
-        datum.otherExpense += expense.amount * 10_000
+        datum.otherExpense += amount * 10_000
       }
     })
 

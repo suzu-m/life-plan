@@ -14,6 +14,8 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
+import Button from '@mui/material/Button'
+import TextField from '@mui/material/TextField'
 import Navi from '@/components/common/Navi'
 import React from 'react'
 import { useHomeStore } from '@/store/useHomeStore'
@@ -24,8 +26,10 @@ import { useLivingStore } from '@/store/useLivingStore'
 import { useIncomeStore } from '@/store/useIncomeStore'
 import { useOtherStore } from '@/store/useOtherStore'
 import { useRetirementStore } from '@/store/useRetirementStore'
+import { useScenarioStore } from '@/store/useScenarioStore'
 import { formatCurrency, formatMan } from '@/utils/format'
 import { buildSimulationData } from '@/utils/simulation'
+import { buildScenarioSimulationData } from '@/utils/scenarioHelper'
 import type { AxisValueFormatterContext } from '@mui/x-charts/models'
 
 const COLORS = {
@@ -59,6 +63,8 @@ export default function Results() {
   const { expenses: otherExpenses } = useOtherStore()
   const { main, partner, assets, passiveIncome } = useIncomeStore()
   const retirementData = useRetirementStore()
+  const { scenarios, saveScenario, updateScenario, loadScenario, deleteScenario } = useScenarioStore()
+  const [scenarioName, setScenarioName] = React.useState('')
 
   const myself = React.useMemo(() => Array.from(people.values()).find((p) => p.relationship === 'myself'), [people])
   const spouse = React.useMemo(() => Array.from(people.values()).find((p) => p.relationship === 'spouse'), [people])
@@ -97,6 +103,41 @@ export default function Results() {
       retirementData
     ]
   )
+
+  const compareDataset = React.useMemo(() => {
+    if (scenarios.length === 0) return []
+
+    // 各シナリオのデータを1回だけ計算
+    const scenarioDatasets: Record<string, ReturnType<typeof buildScenarioSimulationData>> = {}
+    scenarios.forEach((s) => {
+      scenarioDatasets[s.id] = buildScenarioSimulationData(s)
+    })
+
+    let minYear = dataset[0]?.year ?? new Date().getFullYear()
+    let maxYear = dataset[dataset.length - 1]?.year ?? minYear
+
+    Object.values(scenarioDatasets).forEach((sd) => {
+      if (sd.length > 0) {
+        if (sd[0].year < minYear) minYear = sd[0].year
+        if (sd[sd.length - 1].year > maxYear) maxYear = sd[sd.length - 1].year
+      }
+    })
+
+    const unified = []
+    for (let year = minYear; year <= maxYear; year++) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const row: any = { year }
+      const currentSd = dataset.find((x) => x.year === year)
+      row.current = currentSd ? currentSd.balance : null
+
+      scenarios.forEach((s) => {
+        const sd = scenarioDatasets[s.id]?.find((x) => x.year === year)
+        row[`scenario_${s.id}`] = sd ? sd.balance : null
+      })
+      unified.push(row)
+    }
+    return unified
+  }, [dataset, scenarios])
 
   const finalBalance = dataset[dataset.length - 1]?.balance ?? 0
   const peakExpense = Math.max(...dataset.map((d) => d.total))
@@ -159,6 +200,7 @@ export default function Results() {
                 <Tab label="資産残高推移" />
                 <Tab label="収支比較" />
                 <Tab label="支出の内訳" />
+                <Tab label="プラン比較・管理" />
               </Tabs>
             </Box>
 
@@ -501,6 +543,156 @@ export default function Results() {
                           }}
                         />
                       </Box>
+                    </Box>
+                  )}
+                  {tabValue === 3 && (
+                    <Box sx={{ width: '100%', mt: 2 }}>
+                      <Box sx={{ mb: 6 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2 }}>
+                          現在の状態をプランとして保存する
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                          <TextField
+                            size="small"
+                            label="プラン名 (例: 郊外で持ち家プラン)"
+                            value={scenarioName}
+                            onChange={(e) => setScenarioName(e.target.value)}
+                            sx={{ width: 300 }}
+                          />
+                          <Button
+                            variant="contained"
+                            disabled={!scenarioName.trim()}
+                            onClick={() => {
+                              saveScenario(scenarioName.trim())
+                              setScenarioName('')
+                            }}
+                          >
+                            保存する
+                          </Button>
+                        </Box>
+                      </Box>
+
+                      {scenarios.length > 0 && (
+                        <>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2 }}>
+                            保存済みのプランと資産残高の比較
+                          </Typography>
+                          <Box sx={{ width: '100%', overflowX: 'auto', mb: 4 }}>
+                            <Box sx={{ minWidth: 800 }}>
+                              <LineChart
+                                dataset={compareDataset}
+                                height={500}
+                                margin={{ top: 80, right: 20, bottom: 40, left: 80 }}
+                                xAxis={[
+                                  {
+                                    dataKey: 'year',
+                                    valueFormatter: (v: number) => `${v}年`
+                                  }
+                                ]}
+                                yAxis={[
+                                  { label: '資産残高 (万円)', valueFormatter: (v: number) => `${v.toLocaleString()}万` }
+                                ]}
+                                series={[
+                                  {
+                                    dataKey: 'current',
+                                    label: '現在の状態',
+                                    color: COLORS.balance,
+                                    showMark: false,
+                                    connectNulls: true
+                                  },
+                                  ...scenarios.map((s, idx) => ({
+                                    dataKey: `scenario_${s.id}`,
+                                    label: s.name,
+                                    showMark: false,
+                                    connectNulls: true,
+                                    color: `hsl(${(idx * 137) % 360}, 70%, 50%)`
+                                  }))
+                                ]}
+                                slotProps={{
+                                  legend: {
+                                    direction: 'horizontal',
+                                    position: { vertical: 'top', horizontal: 'center' }
+                                  }
+                                }}
+                              />
+                            </Box>
+                          </Box>
+
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2 }}>
+                            プラン管理
+                          </Typography>
+                          <TableContainer component={Paper} variant="outlined">
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow sx={{ bgcolor: 'action.hover' }}>
+                                  <TableCell width={'auto'} sx={{ fontWeight: 'bold' }}>
+                                    プラン名
+                                  </TableCell>
+                                  <TableCell width={200} sx={{ fontWeight: 'bold' }}>
+                                    保存日時
+                                  </TableCell>
+                                  <TableCell width={200} align="center" sx={{ fontWeight: 'bold' }}>
+                                    操作
+                                  </TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {scenarios.map((s) => (
+                                  <TableRow key={s.id}>
+                                    <TableCell>{s.name}</TableCell>
+                                    <TableCell>{new Date(s.createdAt).toLocaleString()}</TableCell>
+                                    <TableCell align="right">
+                                      <Button
+                                        size="small"
+                                        color="primary"
+                                        onClick={() => {
+                                          if (
+                                            window.confirm(
+                                              `${s.name} を読み込みますか？ 現在の未保存の入力は失われます。`
+                                            )
+                                          ) {
+                                            loadScenario(s.id)
+                                          }
+                                        }}
+                                        sx={{ mr: 1 }}
+                                      >
+                                        読み込む
+                                      </Button>
+                                      <Button
+                                        size="small"
+                                        color="warning"
+                                        onClick={() => {
+                                          if (
+                                            window.confirm(
+                                              `${s.name} を現在の入力内容で上書きしますか？`
+                                            )
+                                          ) {
+                                            updateScenario(s.id)
+                                          }
+                                        }}
+                                        sx={{ mr: 1 }}
+                                      >
+                                        上書き
+                                      </Button>
+                                      <Button
+                                        size="small"
+                                        color="error"
+                                        onClick={() => {
+                                          if (window.confirm(`${s.name} を削除してもよろしいですか？`)) {
+                                            deleteScenario(s.id)
+                                          }
+                                        }}
+                                      >
+                                        削除
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        </>
+                      )}
                     </Box>
                   )}
                 </>

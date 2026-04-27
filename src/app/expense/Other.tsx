@@ -45,26 +45,42 @@ export default function ExpenseOther() {
                 value={draft.title}
                 onChange={(e) => updateDraft({ title: e.target.value })}
               />
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                 <NumberField
                   label="金額（万円）"
                   width="100%"
                   value={draft.amount}
                   onValueChange={(value) => updateDraft({ amount: value })}
                 />
-                <NumberField
-                  label="開始年"
-                  width="100%"
-                  value={draft.startYear ?? currentYear}
-                  onValueChange={(value) => updateDraft({ startYear: value })}
-                />
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', width: '100%' }}>
+                  <NumberField
+                    label="開始年"
+                    width="100%"
+                    value={draft.startYear ?? currentYear}
+                    onValueChange={(value) => updateDraft({ startYear: value })}
+                  />
+                  <Typography>〜</Typography>
+                  <NumberField
+                    label="終了年"
+                    width="100%"
+                    value={draft.endYear}
+                    min={draft.startYear ?? currentYear}
+                    onValueChange={(value) => updateDraft({ endYear: value })}
+                  />
+                </Box>
                 <NumberField
                   label="頻度（年おき）"
                   width="100%"
                   value={draft.frequency}
                   onValueChange={(value) => updateDraft({ frequency: value })}
-                  helperText="5年おきなら「5」、0で単発"
                 />
+              </Box>
+              <Stack>
+                <Typography variant="caption">
+                  ※単発の支出（1回だけ）の場合は、開始年と終了年を同じ年にしてください。
+                </Typography>
+                <Typography variant="caption">※終了年を空欄にすると、以降ずっと支出が発生します。</Typography>
+                <Typography variant="caption">※頻度は毎年なら 1、2年に1回なら 2、単発なら 0</Typography>
               </Stack>
               <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
                 <Button variant="outlined" onClick={resetDraft}>
@@ -99,8 +115,23 @@ export default function ExpenseOther() {
                       {expense.title}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {expense.startYear}年から {expense.amount?.toLocaleString()}万円
-                      {expense.frequency && expense.frequency > 0 ? `（${expense.frequency}年おき）` : '（単発）'}
+                      {expense.endYear === null ? (
+                        <>{expense.startYear}年 〜 (以降ずっと)</>
+                      ) : expense.startYear === expense.endYear ? (
+                        <>{expense.startYear}年</>
+                      ) : (
+                        <>
+                          {expense.startYear}年 〜 {expense.endYear}年
+                        </>
+                      )}{' '}
+                      / {expense.amount?.toLocaleString()}万円
+                      {expense.frequency && expense.frequency > 1 ? `（${expense.frequency}年おき）` : ''}
+                      {expense.frequency === 1 && (expense.startYear !== expense.endYear || expense.endYear === null)
+                        ? '（毎年）'
+                        : ''}
+                      {(expense.frequency === 0 || !expense.frequency) && expense.startYear === expense.endYear
+                        ? '（単発）'
+                        : ''}
                     </Typography>
                   </Box>
                   <Box>
