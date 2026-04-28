@@ -1,35 +1,35 @@
-import Button from "@mui/material/Button";
+import Navi from '@/components/common/Navi'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Typography from '@mui/material/Typography'
 
 export default function Home() {
-
   return (
-        <div>
-      <section>
-        <h1>Home</h1>
-        <h2>出費</h2>
-        <ol>
-          <li>家族構成</li>
-          <li>子供の数＊小中高大＋結婚資金</li>
-          <li>住宅ローン</li>
-          <li>車</li>
-          <li>趣味</li>
-          <li>生活費</li>
-        </ol>
-      </section>
-
-      <section>
-        <h2>収入</h2>
-        <ol>
-          <li>現時点での貯金</li>
-          <li>給与</li>
-          <li>その他</li>
-        </ol>
-      </section>
-      <section>
-      <Button variant="contained">Hello world</Button>
-      </section>
-    </div>
+    <Box sx={{ width: '100%', display: 'flex' }}>
+      <Navi />
+      <Box
+        sx={{
+          width: '100%',
+          padding: '40px 20px',
+          margin: '0 auto',
+          textAlign: 'center'
+        }}
+      >
+        <Typography variant="h4" sx={{ marginBottom: '8px' }}>
+          LIFE SIMULATION
+        </Typography>
+        <Typography color="text.secondary" sx={{ marginBottom: 4 }}>
+          将来の家計収支と資産残高の推移を確認しましょう。
+        </Typography>
+        <Box>
+          <img src="/img_top.jpeg" alt="top" style={{ width: '100%', maxWidth: '800px' }} />
+        </Box>
+        <Box>
+          <Button variant="contained" size="large" sx={{ width: '300px' }} href="/family">
+            早速はじめる
+          </Button>
+        </Box>
+      </Box>
+    </Box>
   )
 }
-
-
