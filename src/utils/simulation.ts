@@ -1,4 +1,5 @@
-import { type HomePlan, type OwnLoan, type RepaymentType } from '@/store/useHomeStore'
+import { type HomePlan, type OwnLoan } from '@/store/useHomeStore'
+import { calculateYearlyLoanCost } from '@/utils/loan'
 import { type Person } from '@/store/useFamilyStore'
 import { type ChildExpensePlan } from '@/store/useChildStore'
 import { type CarPlan } from '@/store/useCarStore'
@@ -34,32 +35,10 @@ export const isRenewalYear = (year: number, fromYear: number, frequency: number 
   !!frequency && frequency > 0 && year !== fromYear && (year - fromYear + 1) % frequency === 0
 
 /**
- * 月額返済額を計算する（元利均等）
- */
-const calculateMonthlyPayment = (amount: number, monthlyRate: number, totalMonths: number): number => {
-  if (monthlyRate === 0) return amount / totalMonths
-  const ratePower = Math.pow(1 + monthlyRate, totalMonths)
-  return (amount * monthlyRate * ratePower) / (ratePower - 1)
-}
-
-/**
  * 住宅ローンの年間コストを計算する
  */
-export const calculateOwnLoanYearlyCost = (loan: OwnLoan, elapsedYears: number, repaymentType: RepaymentType): number => {
-  const amount = loan.amount ?? 0
-  const period = loan.period ?? 0
-  if (amount <= 0 || period <= 0 || elapsedYears < 0 || elapsedYears >= period) return 0
-  const monthlyRate = (loan.interestRate ?? 0) / 100 / 12
-  const totalMonths = period * 12
-  if (repaymentType === 'equal-principal-interest')
-    return calculateMonthlyPayment(amount, monthlyRate, totalMonths) * 12
-  const monthlyPrincipal = amount / totalMonths
-  let yearlyTotal = 0
-  for (let month = 0; month < 12; month++) {
-    const remainingBalance = amount - monthlyPrincipal * (elapsedYears * 12 + month)
-    yearlyTotal += monthlyPrincipal + remainingBalance * monthlyRate
-  }
-  return yearlyTotal
+export const calculateOwnLoanYearlyCost = (loan: OwnLoan, elapsedYears: number): number => {
+  return calculateYearlyLoanCost(loan, elapsedYears)
 }
 
 /**
@@ -207,7 +186,11 @@ export const calculateMemberSalaryForYear = (person: Person, incomeData: MemberI
 /**
  * 退職金を年度ごとに計算する
  */
-export const calculateMemberRetirementAllowanceForYear = (person: Person, incomeData: MemberIncome, year: number): number => {
+export const calculateMemberRetirementAllowanceForYear = (
+  person: Person,
+  incomeData: MemberIncome,
+  year: number
+): number => {
   if (person.age === null || person.age === undefined || isNaN(person.age)) return 0
   const birthYear = CURRENT_YEAR - person.age
   const ageInYear = year - birthYear
@@ -220,15 +203,18 @@ export const calculateMemberRetirementAllowanceForYear = (person: Person, income
 /**
  * シミュレーションの期間を取得
  */
-export const getSimulationRange = (homePlans: HomePlan[], people: Map<number, Person>): { startYear: number; endYear: number } => {
+export const getSimulationRange = (
+  homePlans: HomePlan[],
+  people: Map<number, Person>
+): { startYear: number; endYear: number } => {
   const years = homePlans
     .flatMap((p) => [p.fromYear, p.toYear])
     .filter((y): y is number => typeof y === 'number' && !isNaN(y))
-    
+
   const myself = Array.from(people.values()).find((p) => p.relationship === 'myself')
   const myselfAge = myself?.age
   const validAge = typeof myselfAge === 'number' && !isNaN(myselfAge) ? myselfAge : null
-  
+
   const endYear = validAge !== null ? CURRENT_YEAR + (90 - validAge) : CURRENT_YEAR + 50
   return { startYear: Math.min(CURRENT_YEAR, ...years), endYear }
 }
@@ -293,28 +279,14 @@ export const buildSimulationData = (
           datum.rentalRenewal += plan.rental.renewalFee ?? 0
       } else {
         const elapsed = year - plan.fromYear
-        if (plan.own.loanMode === 'single')
-          datum.ownSingle += calculateOwnLoanYearlyCost(
-            plan.own.loans[0],
-            elapsed,
-            plan.own.loans[0]?.repaymentType ?? 'equal-principal-interest'
-          )
-        else {
-          datum.ownMain += calculateOwnLoanYearlyCost(
-            plan.own.loans[0],
-            elapsed,
-            plan.own.loans[0]?.repaymentType ?? 'equal-principal-interest'
-          )
-          datum.ownPartner += calculateOwnLoanYearlyCost(
-            plan.own.loans[1],
-            elapsed,
-            plan.own.loans[1]?.repaymentType ?? 'equal-principal-interest'
-          )
+        if (plan.own.loanMode === 'single') {
+          datum.ownSingle += calculateOwnLoanYearlyCost(plan.own.loans[0], elapsed)
+        } else {
+          datum.ownMain += calculateOwnLoanYearlyCost(plan.own.loans[0], elapsed)
+          datum.ownPartner += calculateOwnLoanYearlyCost(plan.own.loans[1], elapsed)
         }
         datum.homeMaintenance +=
-          ((plan.own.managementFee ?? 0) +
-            (plan.own.repairReserveFee ?? 0) +
-            (plan.own.houseRepairReserveFee ?? 0)) *
+          ((plan.own.managementFee ?? 0) + (plan.own.repairReserveFee ?? 0) + (plan.own.houseRepairReserveFee ?? 0)) *
           12 *
           10_000
         datum.homeMaintenance += (plan.own.propertyTaxYearly ?? 0) * 10_000
@@ -380,37 +352,37 @@ export const buildSimulationData = (
 
     // 収入計算
     let yearlyNetIncome = (incomeData.passiveIncome ?? 0) * 10_000
-    
+
     if (myself) {
       // 給与収入（手取り換算 0.75）
       const salary = calculateMemberSalaryForYear(myself, incomeData.main, year) * 10_000
       yearlyNetIncome += Math.floor(salary * 0.75)
-      
+
       // 退職金（100%）
       yearlyNetIncome += calculateMemberRetirementAllowanceForYear(myself, incomeData.main, year) * 10_000
-      
+
       // 年金（100%）
       const myAge = year - (CURRENT_YEAR - myself.age!)
       if (myAge >= retirementPlan.selfPensionStartAge) {
         yearlyNetIncome += retirementPlan.selfPensionMonthly * 12 * 10_000
       }
     }
-    
+
     if (spouse) {
       // 給与収入（手取り換算 0.75）
       const salary = calculateMemberSalaryForYear(spouse, incomeData.partner, year) * 10_000
       yearlyNetIncome += Math.floor(salary * 0.75)
-      
+
       // 退職金（100%）
       yearlyNetIncome += calculateMemberRetirementAllowanceForYear(spouse, incomeData.partner, year) * 10_000
-      
+
       // 年金（100%）
       const spouseAge = year - (CURRENT_YEAR - spouse.age!)
       if (spouseAge >= retirementPlan.spousePensionStartAge) {
         yearlyNetIncome += retirementPlan.spousePensionMonthly * 12 * 10_000
       }
     }
-    
+
     datum.income = yearlyNetIncome
 
     currentBalance += (datum.income - datum.total) / 10_000
