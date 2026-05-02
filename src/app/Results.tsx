@@ -360,67 +360,144 @@ export default function Results() {
                   <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 3 }}>
                     資産残高 詳細 (単位: 万円)
                   </Typography>
-                  <Box sx={{ overflowX: 'auto', display: 'flex', gap: 3, pb: 2 }}>
-                    {Array.from({ length: Math.ceil(dataset.length / 10) }).map((_, i) => {
-                      const chunk = dataset.slice(i * 10, i * 10 + 10)
-                      const initialAssets =
-                        (assets.bankSavings ?? 0) +
-                        (assets.nisa ?? 0) +
-                        (assets.ideco ?? 0) +
-                        (assets.otherInvestments ?? 0)
+                  <Box sx={{ overflowX: 'auto', minWidth: 600 }}>
+                    <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, maxHeight: 600 }}>
+                      <Table size="small" stickyHeader>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell
+                              sx={{
+                                fontWeight: 'bold',
+                                bgcolor: 'background.paper',
+                                p: 1,
+                                borderBottom: '2px solid',
+                                borderColor: 'divider'
+                              }}
+                            >
+                              年
+                            </TableCell>
+                            {dataset[0]?.memberAges.map((ma) => (
+                              <TableCell
+                                key={ma.name}
+                                align="center"
+                                sx={{
+                                  fontWeight: 'bold',
+                                  bgcolor: 'background.paper',
+                                  p: 1,
+                                  minWidth: 60,
+                                  borderBottom: '2px solid',
+                                  borderColor: 'divider'
+                                }}
+                              >
+                                {ma.name}
+                              </TableCell>
+                            ))}
+                            <TableCell
+                              align="right"
+                              sx={{
+                                fontWeight: 'bold',
+                                bgcolor: 'background.paper',
+                                p: 1,
+                                borderBottom: '2px solid',
+                                borderColor: 'divider'
+                              }}
+                            >
+                              収入(万円)
+                            </TableCell>
+                            <TableCell
+                              align="right"
+                              sx={{
+                                fontWeight: 'bold',
+                                bgcolor: 'background.paper',
+                                p: 1,
+                                borderBottom: '2px solid',
+                                borderColor: 'divider'
+                              }}
+                            >
+                              支出(万円)
+                            </TableCell>
+                            <TableCell
+                              align="right"
+                              sx={{
+                                fontWeight: 'bold',
+                                bgcolor: 'background.paper',
+                                p: 1,
+                                borderBottom: '2px solid',
+                                borderColor: 'divider'
+                              }}
+                            >
+                              収支(万円)
+                            </TableCell>
+                            <TableCell
+                              align="right"
+                              sx={{
+                                fontWeight: 'bold',
+                                bgcolor: 'background.paper',
+                                p: 1,
+                                borderBottom: '2px solid',
+                                borderColor: 'divider'
+                              }}
+                            >
+                              残高 (前年比)
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {dataset.map((d, i) => {
+                            const initialAssets =
+                              (assets.bankSavings ?? 0) +
+                              (assets.nisa ?? 0) +
+                              (assets.ideco ?? 0) +
+                              (assets.otherInvestments ?? 0)
+                            const prevBalance = i > 0 ? dataset[i - 1].balance : initialAssets
+                            const diff = Math.floor(d.balance - prevBalance)
+                            const net = Math.floor((d.income - d.total) / 10000)
 
-                      return (
-                        <TableContainer
-                          key={i}
-                          component={Paper}
-                          variant="outlined"
-                          sx={{ minWidth: 220, maxWidth: 280, borderRadius: 2 }}
-                        >
-                          <Table size="small">
-                            <TableHead>
-                              <TableRow sx={{ bgcolor: 'action.hover' }}>
-                                <TableCell sx={{ fontWeight: 'bold' }}>年</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                                  残高
+                            return (
+                              <TableRow key={d.year} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                <TableCell sx={{ color: 'text.secondary', fontSize: '0.85rem', p: 1 }}>
+                                  {d.year}年
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                                  前年比
+                                {d.memberAges.map((ma) => (
+                                  <TableCell key={ma.name} align="center" sx={{ fontSize: '0.85rem', p: 1 }}>
+                                    {ma.age}歳
+                                  </TableCell>
+                                ))}
+                                <TableCell align="right" sx={{ fontSize: '0.85rem', p: 1 }}>
+                                  {Math.floor(d.income / 10000).toLocaleString()}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontSize: '0.85rem', p: 1 }}>
+                                  {Math.floor(d.total / 10000).toLocaleString()}
+                                </TableCell>
+                                <TableCell
+                                  align="right"
+                                  sx={{
+                                    fontSize: '0.85rem',
+                                    p: 1,
+                                    color: net >= 0 ? 'success.main' : 'error.main'
+                                  }}
+                                >
+                                  {net > 0 ? `+${net.toLocaleString()}` : net.toLocaleString()}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'medium', fontSize: '0.9rem', p: 1 }}>
+                                  {Math.floor(d.balance).toLocaleString()}
+                                  <Typography
+                                    component="span"
+                                    sx={{
+                                      fontSize: '0.75rem',
+                                      ml: 0.5,
+                                      color: diff >= 0 ? 'success.main' : 'error.main'
+                                    }}
+                                  >
+                                    ({diff > 0 ? `+${diff.toLocaleString()}` : diff.toLocaleString()})
+                                  </Typography>
                                 </TableCell>
                               </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {chunk.map((d, indexInChunk) => {
-                                const absoluteIndex = i * 10 + indexInChunk
-                                const prevBalance =
-                                  absoluteIndex > 0 ? dataset[absoluteIndex - 1].balance : initialAssets
-                                const diff = Math.floor(d.balance - prevBalance)
-
-                                return (
-                                  <TableRow key={d.year} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                                    <TableCell sx={{ color: 'text.secondary', fontSize: '0.8rem', p: 0.5 }}>
-                                      {d.year}年
-                                    </TableCell>
-                                    <TableCell align="right" sx={{ fontWeight: 'medium', p: 0.5 }}>
-                                      {Math.floor(d.balance).toLocaleString()}
-                                    </TableCell>
-                                    <TableCell
-                                      align="right"
-                                      sx={{
-                                        p: 0.5,
-                                        fontSize: '0.8rem',
-                                        color: diff >= 0 ? 'success.main' : 'error.main'
-                                      }}
-                                    >
-                                      {diff > 0 ? `+${diff.toLocaleString()}` : diff.toLocaleString()}
-                                    </TableCell>
-                                  </TableRow>
-                                )
-                              })}
-                            </TableBody>
-                          </Table>
-                        </TableContainer>
-                      )
-                    })}
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
                   </Box>
                 </Box>
 
