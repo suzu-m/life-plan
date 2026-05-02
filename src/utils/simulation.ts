@@ -8,6 +8,13 @@ import { type MemberIncome, type Assets } from '@/store/useIncomeStore'
 import { type OtherExpense } from '@/store/useOtherStore'
 import { type RetirementPlan } from '@/store/useRetirementStore'
 
+export type FinancialSettings = {
+  investmentYield: number | null
+  furusatoNozeiAmount: number | null
+  mortgageDeductionEnabled: boolean
+  otherDeductionsAmount: number | null
+}
+
 export type SimulationChartDatum = {
   year: number
   rentalBase: number
@@ -230,7 +237,8 @@ export const buildSimulationData = (
   livingPlan: LivingPlan,
   otherExpenses: Map<number, OtherExpense>,
   incomeData: { main: MemberIncome; partner: MemberIncome; assets: Assets; passiveIncome: number | null },
-  retirementPlan: RetirementPlan
+  retirementPlan: RetirementPlan,
+  financialSettings: FinancialSettings
 ): SimulationChartDatum[] => {
   const { startYear, endYear } = getSimulationRange(homePlans, people)
   let currentBalance =
@@ -292,6 +300,9 @@ export const buildSimulationData = (
         datum.homeMaintenance += (plan.own.propertyTaxYearly ?? 0) * 10_000
       }
     })
+
+    // ふるさと納税
+    datum.otherExpense += (financialSettings.furusatoNozeiAmount ?? 0) * 10_000
 
     people.forEach((p, id) => {
       if (p.relationship === 'child') {
@@ -383,7 +394,33 @@ export const buildSimulationData = (
       }
     }
 
+    // 住宅ローン控除 (簡易計算: 残高の0.7%、最大13年)
+    if (financialSettings.mortgageDeductionEnabled) {
+      homePlans.forEach((plan) => {
+        if (plan.type === 'own' && plan.fromYear && year >= plan.fromYear && year < plan.fromYear + 13) {
+          const elapsed = year - plan.fromYear
+          plan.own.loans.forEach((loan) => {
+            const amount = loan.amount ?? 0
+            const period = loan.period ?? 0
+            if (amount > 0 && period > 0 && elapsed < period) {
+              const monthlyPrincipal = amount / (period * 12)
+              const remainingBalance = Math.max(0, amount - monthlyPrincipal * (elapsed * 12))
+              // 0.7% 控除 (上限 21万円と仮定)
+              const deduction = Math.min(210_000, remainingBalance * 0.007)
+              yearlyNetIncome += deduction
+            }
+          })
+        }
+      })
+    }
+
     datum.income = yearlyNetIncome
+
+    // 運用益の加算
+    if (financialSettings.investmentYield && financialSettings.investmentYield > 0) {
+      const yieldAmount = currentBalance * (financialSettings.investmentYield / 100)
+      currentBalance += yieldAmount
+    }
 
     currentBalance += (datum.income - datum.total) / 10_000
     datum.balance = currentBalance

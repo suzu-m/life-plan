@@ -34,6 +34,7 @@ import { useLivingStore } from '@/store/useLivingStore'
 import { useIncomeStore } from '@/store/useIncomeStore'
 import { useOtherStore } from '@/store/useOtherStore'
 import { useRetirementStore } from '@/store/useRetirementStore'
+import { useFinancialStore } from '@/store/useFinancialStore'
 import { useScenarioStore } from '@/store/useScenarioStore'
 import { formatCurrency, formatMan } from '@/utils/format'
 import { buildSimulationData } from '@/utils/simulation'
@@ -64,6 +65,7 @@ export default function Results() {
   const { expenses: otherExpenses } = useOtherStore()
   const { main, partner, assets, passiveIncome } = useIncomeStore()
   const retirementData = useRetirementStore()
+  const financialData = useFinancialStore()
   const { scenarios, saveScenario, updateScenario, loadScenario, deleteScenario } = useScenarioStore()
   const [scenarioName, setScenarioName] = React.useState('')
 
@@ -87,7 +89,8 @@ export default function Results() {
           assets,
           passiveIncome
         },
-        retirementData
+        retirementData,
+        financialData
       ),
     [
       homePlans,
@@ -100,7 +103,8 @@ export default function Results() {
       partner,
       assets,
       passiveIncome,
-      retirementData
+      retirementData,
+      financialData
     ]
   )
 

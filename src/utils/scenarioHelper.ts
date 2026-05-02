@@ -1,4 +1,4 @@
-import { buildSimulationData, type SimulationChartDatum } from './simulation'
+import { buildSimulationData, type SimulationChartDatum, type FinancialSettings } from './simulation'
 import type { Scenario } from '@/store/useScenarioStore'
 import type { Person } from '@/store/useFamilyStore'
 import type { ChildExpensePlan } from '@/store/useChildStore'
@@ -32,6 +32,7 @@ export const buildScenarioSimulationData = (scenario: Scenario): SimulationChart
   const livingState = parseJSON<PersistedState>(d['living-storage'], {}).state ?? {}
   const otherState = parseJSON<PersistedState>(d['other-storage'], {}).state ?? {}
   const retirementState = parseJSON<PersistedState>(d['retirement-storage'], {}).state ?? {}
+  const financialState = parseJSON<PersistedState>(d['financial-storage'], {}).state ?? {}
 
   // Restore Maps from Array.from(map.entries()) pattern used by persist partialize
   const people = new Map<number, Person>(familyState.people ?? [])
@@ -60,13 +61,19 @@ export const buildScenarioSimulationData = (scenario: Scenario): SimulationChart
     assets: incomeState.assets ?? ({} as Assets),
     passiveIncome: incomeState.passiveIncome ?? null
   }
-
   const retirementPlan: RetirementPlan = {
     selfPensionMonthly: retirementState.selfPensionMonthly ?? 15,
     selfPensionStartAge: retirementState.selfPensionStartAge ?? 65,
     spousePensionMonthly: retirementState.spousePensionMonthly ?? 10,
     spousePensionStartAge: retirementState.spousePensionStartAge ?? 65,
     retirementLivingExpenseMonthly: retirementState.retirementLivingExpenseMonthly ?? 30
+  }
+
+  const financialSettings: FinancialSettings = {
+    investmentYield: financialState.investmentYield ?? 3,
+    furusatoNozeiAmount: financialState.furusatoNozeiAmount ?? null,
+    mortgageDeductionEnabled: financialState.mortgageDeductionEnabled ?? true,
+    otherDeductionsAmount: financialState.otherDeductionsAmount ?? null
   }
 
   return buildSimulationData(
@@ -77,6 +84,7 @@ export const buildScenarioSimulationData = (scenario: Scenario): SimulationChart
     livingPlan,
     otherExpenses,
     incomeData,
-    retirementPlan
+    retirementPlan,
+    financialSettings
   )
 }

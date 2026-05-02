@@ -12,6 +12,7 @@ import ExpenseCar from './app/expense/Car.tsx'
 import ExpenseLiving from './app/expense/Living.tsx'
 import ExpenseOther from './app/expense/Other.tsx'
 import Income from './app/Income.tsx'
+import Financial from './app/Financial.tsx'
 import Retirement from './app/Retirement.tsx'
 import Results from './app/Results.tsx'
 const theme = createTheme({
@@ -60,6 +61,10 @@ const router = createBrowserRouter([
   {
     path: '/income',
     element: <Income />
+  },
+  {
+    path: '/financial',
+    element: <Financial />
   },
   {
     path: '/retirement',

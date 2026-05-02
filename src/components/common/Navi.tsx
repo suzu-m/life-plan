@@ -17,6 +17,7 @@ import SavingsIcon from '@mui/icons-material/Savings'
 import ChildCareIcon from '@mui/icons-material/ChildCare'
 import OutputIcon from '@mui/icons-material/Output'
 import ElderlyIcon from '@mui/icons-material/Elderly'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 
 export default function NestedList() {
   const [openIncome, setOpenIncome] = React.useState(true)
@@ -94,6 +95,12 @@ export default function NestedList() {
           <SavingsIcon />
         </ListItemIcon>
         <ListItemText primary="収入" />
+      </ListItemButton>
+      <ListItemButton component="a" href="/financial">
+        <ListItemIcon>
+          <TrendingUpIcon />
+        </ListItemIcon>
+        <ListItemText primary="運用・控除" />
       </ListItemButton>
       <ListItemButton component="a" href="/retirement">
         <ListItemIcon>
