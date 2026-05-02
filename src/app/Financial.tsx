@@ -1,3 +1,4 @@
+import * as React from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
@@ -7,9 +8,19 @@ import Switch from '@mui/material/Switch'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import Alert from '@mui/material/Alert'
+import Table from '@mui/material/Table'
+import TableBody from '@mui/material/TableBody'
+import TableCell from '@mui/material/TableCell'
+import TableContainer from '@mui/material/TableContainer'
+import TableHead from '@mui/material/TableHead'
+import TableRow from '@mui/material/TableRow'
+import Paper from '@mui/material/Paper'
 import Navi from '@/components/common/Navi'
 import NumberField from '@/components/common/NumberField'
 import { useFinancialStore } from '@/store/useFinancialStore'
+import { useHomeStore } from '@/store/useHomeStore'
+import { calculateMortgageDeduction } from '@/utils/loan'
+import { formatCurrency } from '@/utils/format'
 
 /**
  * 運用・控除設定画面
@@ -23,6 +34,28 @@ export default function Financial() {
     updateSettings,
     reset
   } = useFinancialStore()
+  const { plans: homePlans } = useHomeStore()
+
+  /**
+   * 住宅ローン控除の試算データを生成
+   */
+  const mortgageDeductions = React.useMemo(() => {
+    const ownPlan = homePlans.find((p) => p.type === 'own')
+    if (!ownPlan || !ownPlan.fromYear) return []
+
+    const deductions = []
+    for (let i = 0; i < 13; i++) {
+      const year = ownPlan.fromYear + i
+      let yearlyAmount = 0
+      ownPlan.own.loans.forEach((loan) => {
+        yearlyAmount += calculateMortgageDeduction(loan, i)
+      })
+      if (yearlyAmount > 0) {
+        deductions.push({ year, amount: yearlyAmount })
+      }
+    }
+    return deductions
+  }, [homePlans])
 
   return (
     <Box sx={{ width: '100%', display: 'flex' }}>
@@ -110,6 +143,34 @@ export default function Financial() {
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                     ※持ち家のプランが設定されている場合に、返済開始から一定期間（最大13年）、ローン残高に応じた控除（還付）を簡易的に計算します。
                   </Typography>
+
+                  {mortgageDeductionEnabled && mortgageDeductions.length > 0 && (
+                    <Box sx={{ mt: 3 }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        住宅ローン控除 試算表
+                      </Typography>
+                      <TableContainer component={Paper} variant="outlined">
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow sx={{ backgroundColor: 'action.hover' }}>
+                              <TableCell sx={{ fontWeight: 'bold' }}>年</TableCell>
+                              <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                                控除額（年間）
+                              </TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {mortgageDeductions.map((row) => (
+                              <TableRow key={row.year}>
+                                <TableCell>{row.year}年</TableCell>
+                                <TableCell align="right">{formatCurrency(row.amount)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Box>
+                  )}
                 </Box>
               </Stack>
             </CardContent>

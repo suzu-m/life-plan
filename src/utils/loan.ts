@@ -69,3 +69,24 @@ export const calculateYearlyLoanCost = (loan: OwnLoan | undefined, elapsedYears:
   }
   return 0
 }
+
+/**
+ * 住宅ローン控除額を計算する (簡易計算: 残高の0.7%、最大13年)
+ * @param loan ローン情報
+ * @param elapsedYears 経過年数 (0-indexed)
+ * @returns 控除額 (円)
+ */
+export const calculateMortgageDeduction = (loan: OwnLoan | undefined, elapsedYears: number): number => {
+  if (!loan) return 0
+  const amount = loan.amount ?? 0
+  const period = loan.period ?? 0
+  // 控除期間は最大13年とする
+  if (amount <= 0 || period <= 0 || elapsedYears < 0 || elapsedYears >= period || elapsedYears >= 13) return 0
+
+  // 簡易的に元金均等返済ベースの残高で計算
+  const monthlyPrincipal = amount / (period * 12)
+  const remainingBalance = Math.max(0, amount - monthlyPrincipal * (elapsedYears * 12))
+  
+  // 0.7% 控除 (上限 21万円と仮定)
+  return Math.min(210_000, remainingBalance * 0.007)
+}

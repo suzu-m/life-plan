@@ -1,5 +1,5 @@
 import { type HomePlan, type OwnLoan } from '@/store/useHomeStore'
-import { calculateYearlyLoanCost } from '@/utils/loan'
+import { calculateYearlyLoanCost, calculateMortgageDeduction } from '@/utils/loan'
 import { type Person } from '@/store/useFamilyStore'
 import { type ChildExpensePlan } from '@/store/useChildStore'
 import { type CarPlan } from '@/store/useCarStore'
@@ -400,15 +400,7 @@ export const buildSimulationData = (
         if (plan.type === 'own' && plan.fromYear && year >= plan.fromYear && year < plan.fromYear + 13) {
           const elapsed = year - plan.fromYear
           plan.own.loans.forEach((loan) => {
-            const amount = loan.amount ?? 0
-            const period = loan.period ?? 0
-            if (amount > 0 && period > 0 && elapsed < period) {
-              const monthlyPrincipal = amount / (period * 12)
-              const remainingBalance = Math.max(0, amount - monthlyPrincipal * (elapsed * 12))
-              // 0.7% 控除 (上限 21万円と仮定)
-              const deduction = Math.min(210_000, remainingBalance * 0.007)
-              yearlyNetIncome += deduction
-            }
+            yearlyNetIncome += calculateMortgageDeduction(loan, elapsed)
           })
         }
       })
