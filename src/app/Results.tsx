@@ -393,7 +393,7 @@ export default function Results() {
                               </TableCell>
                             ))}
                             <TableCell
-                              align="right"
+                              align="left"
                               sx={{
                                 fontWeight: 'bold',
                                 bgcolor: 'background.paper',
@@ -405,7 +405,7 @@ export default function Results() {
                               収入(万円)
                             </TableCell>
                             <TableCell
-                              align="right"
+                              align="left"
                               sx={{
                                 fontWeight: 'bold',
                                 bgcolor: 'background.paper',
@@ -417,7 +417,7 @@ export default function Results() {
                               支出(万円)
                             </TableCell>
                             <TableCell
-                              align="right"
+                              align="left"
                               sx={{
                                 fontWeight: 'bold',
                                 bgcolor: 'background.paper',
@@ -429,7 +429,7 @@ export default function Results() {
                               収支(万円)
                             </TableCell>
                             <TableCell
-                              align="right"
+                              align="left"
                               sx={{
                                 fontWeight: 'bold',
                                 bgcolor: 'background.paper',
@@ -438,7 +438,31 @@ export default function Results() {
                                 borderColor: 'divider'
                               }}
                             >
-                              残高 (前年比)
+                              預金(万円)
+                            </TableCell>
+                            <TableCell
+                              align="left"
+                              sx={{
+                                fontWeight: 'bold',
+                                bgcolor: 'background.paper',
+                                p: 1,
+                                borderBottom: '2px solid',
+                                borderColor: 'divider'
+                              }}
+                            >
+                              投資(万円)
+                            </TableCell>
+                            <TableCell
+                              align="left"
+                              sx={{
+                                fontWeight: 'bold',
+                                bgcolor: 'background.paper',
+                                p: 1,
+                                borderBottom: '2px solid',
+                                borderColor: 'divider'
+                              }}
+                            >
+                              総資産 (前年比)
                             </TableCell>
                           </TableRow>
                         </TableHead>
@@ -446,9 +470,9 @@ export default function Results() {
                           {dataset.map((d, i) => {
                             const initialAssets =
                               (assets.bankSavings ?? 0) +
-                              (assets.nisa ?? 0) +
-                              (assets.ideco ?? 0) +
-                              (assets.otherInvestments ?? 0)
+                              (financialData.nisaInitial ?? 0) +
+                              (financialData.idecoInitial ?? 0) +
+                              (financialData.otherInvestmentsInitial ?? 0)
                             const prevBalance = i > 0 ? dataset[i - 1].balance : initialAssets
                             const diff = Math.floor(d.balance - prevBalance)
                             const net = Math.floor((d.income - d.total) / 10000)
@@ -463,14 +487,14 @@ export default function Results() {
                                     {ma.age}歳
                                   </TableCell>
                                 ))}
-                                <TableCell align="right" sx={{ fontSize: '0.85rem', p: 1 }}>
+                                <TableCell align="left" sx={{ fontSize: '0.85rem', p: 1 }}>
                                   {Math.floor(d.income / 10000).toLocaleString()}
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontSize: '0.85rem', p: 1 }}>
+                                <TableCell align="left" sx={{ fontSize: '0.85rem', p: 1 }}>
                                   {Math.floor(d.total / 10000).toLocaleString()}
                                 </TableCell>
                                 <TableCell
-                                  align="right"
+                                  align="left"
                                   sx={{
                                     fontSize: '0.85rem',
                                     p: 1,
@@ -479,7 +503,13 @@ export default function Results() {
                                 >
                                   {net > 0 ? `+${net.toLocaleString()}` : net.toLocaleString()}
                                 </TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 'medium', fontSize: '0.9rem', p: 1 }}>
+                                <TableCell align="left" sx={{ fontSize: '0.85rem', p: 1 }}>
+                                  {Math.floor(d.bankBalance).toLocaleString()}
+                                </TableCell>
+                                <TableCell align="left" sx={{ fontSize: '0.85rem', p: 1 }}>
+                                  {Math.floor(d.investedBalance).toLocaleString()}
+                                </TableCell>
+                                <TableCell align="left" sx={{ fontWeight: 'medium', fontSize: '0.9rem', p: 1 }}>
                                   {Math.floor(d.balance).toLocaleString()}
                                   <Typography
                                     component="span"

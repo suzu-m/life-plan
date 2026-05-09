@@ -7,9 +7,14 @@ import { type LivingPlan } from '@/store/useLivingStore'
 import { type MemberIncome, type Assets } from '@/store/useIncomeStore'
 import { type OtherExpense } from '@/store/useOtherStore'
 import { type RetirementPlan } from '@/store/useRetirementStore'
+import { type InvestmentPlan } from '@/store/useFinancialStore'
 
 export type FinancialSettings = {
+  nisaInitial: number | null
+  idecoInitial: number | null
+  otherInvestmentsInitial: number | null
   investmentYield: number | null
+  investmentPlans: InvestmentPlan[]
   furusatoNozeiAmount: number | null
   mortgageDeductionEnabled: boolean
   otherDeductionsAmount: number | null
@@ -29,6 +34,8 @@ export type SimulationChartDatum = {
   otherExpense: number
   income: number
   balance: number
+  bankBalance: number      // 預金残高
+  investedBalance: number  // 投資資産残高
   total: number
   memberAges: { name: string; age: number }[]
 }
@@ -241,11 +248,12 @@ export const buildSimulationData = (
   financialSettings: FinancialSettings
 ): SimulationChartDatum[] => {
   const { startYear, endYear } = getSimulationRange(homePlans, people)
-  let currentBalance =
-    (incomeData.assets.bankSavings ?? 0) +
-    (incomeData.assets.nisa ?? 0) +
-    (incomeData.assets.ideco ?? 0) +
-    (incomeData.assets.otherInvestments ?? 0)
+  let currentBankBalance = incomeData.assets.bankSavings ?? 0
+  let currentInvestedBalance =
+    (financialSettings.nisaInitial ?? 0) +
+    (financialSettings.idecoInitial ?? 0) +
+    (financialSettings.otherInvestmentsInitial ?? 0)
+
   const myself = Array.from(people.values()).find((p) => p.relationship === 'myself')
   const spouse = Array.from(people.values()).find((p) => p.relationship === 'spouse')
 
@@ -265,6 +273,8 @@ export const buildSimulationData = (
       otherExpense: 0,
       income: 0,
       balance: 0,
+      bankBalance: 0,
+      investedBalance: 0,
       total: 0,
       memberAges: []
     }
@@ -408,14 +418,28 @@ export const buildSimulationData = (
 
     datum.income = yearlyNetIncome
 
-    // 運用益の加算
+    // 1. 運用益の加算（投資資産のみに適用）
     if (financialSettings.investmentYield && financialSettings.investmentYield > 0) {
-      const yieldAmount = currentBalance * (financialSettings.investmentYield / 100)
-      currentBalance += yieldAmount
+      const yieldAmount = currentInvestedBalance * (financialSettings.investmentYield / 100)
+      currentInvestedBalance += yieldAmount
     }
 
-    currentBalance += (datum.income - datum.total) / 10_000
-    datum.balance = currentBalance
+    // 2. 積立プランの適用（預金から投資資産へ移動）
+    const plans = financialSettings.investmentPlans.filter(
+      (p) => year >= p.startYear && (p.endYear === null || year <= p.endYear)
+    )
+    plans.forEach((p) => {
+      const annualAmount = p.monthlyAmount * 12
+      currentInvestedBalance += annualAmount
+      currentBankBalance -= annualAmount
+    })
+
+    // 3. 今年の収支を加算（預金へ）
+    currentBankBalance += (datum.income - datum.total) / 10_000
+
+    datum.bankBalance = currentBankBalance
+    datum.investedBalance = currentInvestedBalance
+    datum.balance = currentBankBalance + currentInvestedBalance
     return datum
   })
 }

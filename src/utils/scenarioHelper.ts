@@ -70,7 +70,11 @@ export const buildScenarioSimulationData = (scenario: Scenario): SimulationChart
   }
 
   const financialSettings: FinancialSettings = {
+    nisaInitial: financialState.nisaInitial ?? null,
+    idecoInitial: financialState.idecoInitial ?? null,
+    otherInvestmentsInitial: financialState.otherInvestmentsInitial ?? null,
     investmentYield: financialState.investmentYield ?? 3,
+    investmentPlans: financialState.investmentPlans ?? [],
     furusatoNozeiAmount: financialState.furusatoNozeiAmount ?? null,
     mortgageDeductionEnabled: financialState.mortgageDeductionEnabled ?? true,
     otherDeductionsAmount: financialState.otherDeductionsAmount ?? null

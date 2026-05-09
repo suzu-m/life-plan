@@ -30,9 +30,6 @@ export type MemberIncome = {
 
 export type Assets = {
   bankSavings: number | null      // 銀行預金
-  nisa: number | null             // NISA
-  ideco: number | null            // iDeCo
-  otherInvestments: number | null // その他投資
 }
 
 type IncomeStore = {
@@ -60,10 +57,7 @@ const initialMemberIncome: MemberIncome = {
 }
 
 const initialAssets: Assets = {
-  bankSavings: null,
-  nisa: null,
-  ideco: null,
-  otherInvestments: null
+  bankSavings: null
 }
 
 export const useIncomeStore = create<IncomeStore>()(

@@ -380,27 +380,6 @@ export default function Income() {
                   width={200}
                   onValueChange={(value) => updateAssets({ bankSavings: value === null ? null : Number(value) })}
                 />
-                <NumberField
-                  label="NISA（万円）"
-                  value={assets.nisa ?? 0}
-                  min={0}
-                  width={200}
-                  onValueChange={(value) => updateAssets({ nisa: value === null ? null : Number(value) })}
-                />
-                <NumberField
-                  label="iDeCo（万円）"
-                  value={assets.ideco ?? 0}
-                  min={0}
-                  width={200}
-                  onValueChange={(value) => updateAssets({ ideco: value === null ? null : Number(value) })}
-                />
-                <NumberField
-                  label="その他投資（万円）"
-                  value={assets.otherInvestments ?? 0}
-                  min={0}
-                  width={200}
-                  onValueChange={(value) => updateAssets({ otherInvestments: value === null ? null : Number(value) })}
-                />
               </Box>
             </CardContent>
           </Card>

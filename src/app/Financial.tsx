@@ -15,9 +15,13 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
+import IconButton from '@mui/material/IconButton'
+import Divider from '@mui/material/Divider'
+import AddIcon from '@mui/icons-material/Add'
+import DeleteIcon from '@mui/icons-material/Delete'
 import Navi from '@/components/common/Navi'
 import NumberField from '@/components/common/NumberField'
-import { useFinancialStore } from '@/store/useFinancialStore'
+import { useFinancialStore, type InvestmentPlan } from '@/store/useFinancialStore'
 import { useHomeStore } from '@/store/useHomeStore'
 import { calculateMortgageDeduction } from '@/utils/loan'
 import { formatCurrency } from '@/utils/format'
@@ -27,7 +31,11 @@ import { formatCurrency } from '@/utils/format'
  */
 export default function Financial() {
   const {
+    nisaInitial,
+    idecoInitial,
+    otherInvestmentsInitial,
     investmentYield,
+    investmentPlans,
     furusatoNozeiAmount,
     mortgageDeductionEnabled,
     otherDeductionsAmount,
@@ -35,6 +43,28 @@ export default function Financial() {
     reset
   } = useFinancialStore()
   const { plans: homePlans } = useHomeStore()
+
+  const handleAddPlan = () => {
+    const newPlan: InvestmentPlan = {
+      id: Date.now(),
+      startYear: new Date().getFullYear(),
+      endYear: null,
+      monthlyAmount: 3
+    }
+    updateSettings({ investmentPlans: [...investmentPlans, newPlan] })
+  }
+
+  const handleUpdatePlan = (id: number, value: Partial<InvestmentPlan>) => {
+    updateSettings({
+      investmentPlans: investmentPlans.map((p) => (p.id === id ? { ...p, ...value } : p))
+    })
+  }
+
+  const handleRemovePlan = (id: number) => {
+    updateSettings({
+      investmentPlans: investmentPlans.filter((p) => p.id !== id)
+    })
+  }
 
   /**
    * 住宅ローン控除の試算データを生成
@@ -79,10 +109,46 @@ export default function Financial() {
           <Card variant="outlined">
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                資産運用設定
+                資産運用・投資設定
               </Typography>
-              <Stack spacing={3}>
+              <Stack spacing={4}>
+                {/* 現在の資産残高 */}
                 <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 'bold' }}>
+                    現在の投資資産残高
+                  </Typography>
+                  <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
+                    <NumberField
+                      label="NISA残高 (万円)"
+                      value={nisaInitial ?? 0}
+                      min={0}
+                      width={180}
+                      onValueChange={(v) => updateSettings({ nisaInitial: v })}
+                    />
+                    <NumberField
+                      label="iDeCo残高 (万円)"
+                      value={idecoInitial ?? 0}
+                      min={0}
+                      width={180}
+                      onValueChange={(v) => updateSettings({ idecoInitial: v })}
+                    />
+                    <NumberField
+                      label="その他投資 (万円)"
+                      value={otherInvestmentsInitial ?? 0}
+                      min={0}
+                      width={180}
+                      onValueChange={(v) => updateSettings({ otherInvestmentsInitial: v })}
+                    />
+                  </Stack>
+                </Box>
+
+                <Divider />
+
+                {/* 利回り設定 */}
+                <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 'bold' }}>
+                    運用利回り設定
+                  </Typography>
                   <NumberField
                     label="期待運用利回り（年率/%）"
                     value={investmentYield ?? 0}
@@ -90,12 +156,81 @@ export default function Financial() {
                     max={20}
                     step={0.1}
                     width={240}
-                    onValueChange={(value) => updateSettings({ investmentYield: value === null ? null : Number(value) })}
-                    helperText="資産全体に対する平均的な利回りを入力してください。"
+                    onValueChange={(value) => updateSettings({ investmentYield: value })}
+                    helperText="上記の投資資産に対して適用される平均的な利回りを入力してください。"
                   />
                   <Alert severity="info" sx={{ mt: 2 }}>
-                    一般的に、NISAやiDeCoなどを活用したインデックス投資では年率 3%〜5% 程度が目安とされます。
+                    ※現預金（銀行預金）には利回りは適用されません。
                   </Alert>
+                </Box>
+
+                <Divider />
+
+                {/* 積立プラン設定 */}
+                <Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                      積立投資プラン（毎月の積み立て）
+                    </Typography>
+                    <Button startIcon={<AddIcon />} onClick={handleAddPlan} size="small">
+                      プランを追加
+                    </Button>
+                  </Box>
+
+                  {investmentPlans.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center', bgcolor: 'action.hover', borderRadius: 1 }}>
+                      積立設定はありません
+                    </Typography>
+                  ) : (
+                    <Stack spacing={2}>
+                      {investmentPlans.map((plan) => (
+                        <Box key={plan.id} sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                          <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+                            <NumberField
+                              label="開始年"
+                              value={plan.startYear}
+                              min={2000}
+                              width={120}
+                              onValueChange={(v) => handleUpdatePlan(plan.id, { startYear: v || 0 })}
+                            />
+                            <Typography>〜</Typography>
+                            <NumberField
+                              label="終了年 (空で継続)"
+                              value={plan.endYear}
+                              min={2000}
+                              width={140}
+                              onValueChange={(v) => handleUpdatePlan(plan.id, { endYear: v })}
+                            />
+                            <NumberField
+                              label="毎月の積立額 (万円)"
+                              value={plan.monthlyAmount}
+                              min={0}
+                              width={180}
+                              onValueChange={(v) => handleUpdatePlan(plan.id, { monthlyAmount: v || 0 })}
+                            />
+                            <IconButton color="error" onClick={() => handleRemovePlan(plan.id)}>
+                              <DeleteIcon />
+                            </IconButton>
+                          </Stack>
+                          <Box sx={{ mt: 1.5 }}>
+                            <Typography variant="caption" color="primary" sx={{ fontWeight: 'bold' }}>
+                              年間積立額: {(plan.monthlyAmount * 12).toLocaleString()} 万円
+                              {plan.endYear && (
+                                <>
+                                  {' / '}
+                                  期間合計: {(plan.monthlyAmount * 12 * (plan.endYear - plan.startYear + 1)).toLocaleString()} 万円
+                                </>
+                              )}
+                              {!plan.endYear && ' / 継続的に積立'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ))}
+                    </Stack>
+                  )}
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+                    ※設定した金額が、毎月「銀行預金」から「投資資産」へ移動し、運用利回りの対象となります。
+                  </Typography>
                 </Box>
               </Stack>
             </CardContent>
