@@ -240,7 +240,7 @@ export default function ExpenseChild() {
                                   })
                                 }
                               />
-                              <Box sx={{ width: '100%', mt: 0.5 }}>
+                              <Box sx={{ width: '100%', mt: 0 }}>
                                 <Typography variant="caption" color="primary" sx={{ fontWeight: 'bold' }}>
                                   幼少期年額目安:{' '}
                                   {plan.earlyEducationType === 'kindergarten'
@@ -305,7 +305,7 @@ export default function ExpenseChild() {
                               })
                             }
                           />
-                          <Box sx={{ width: '100%', mt: 0.5 }}>
+                          <Box sx={{ width: '100%', mt: 0 }}>
                             <Typography variant="caption" color="primary" sx={{ fontWeight: 'bold' }}>
                               小学校年額目安:{' '}
                               {(

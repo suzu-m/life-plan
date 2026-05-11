@@ -16,14 +16,28 @@ import Financial from './app/Financial.tsx'
 import Retirement from './app/Retirement.tsx'
 import Results from './app/Results.tsx'
 const theme = createTheme({
-  // spacing: 4,
   typography: {
     fontFamily: `"Noto Sans JP", system-ui, "Segoe UI", Roboto, sans-serif`
   },
   components: {
     MuiTextField: {
-      styleOverrides: {
-        root: {}
+      defaultProps: {
+        size: 'small'
+      }
+    },
+    MuiSelect: {
+      defaultProps: {
+        size: 'small'
+      }
+    },
+    MuiFormControl: {
+      defaultProps: {
+        size: 'small'
+      }
+    },
+    MuiButton: {
+      defaultProps: {
+        size: 'small'
       }
     }
   }

@@ -22,7 +22,7 @@ export default function NumberField({
   id: idProp,
   label,
   error,
-  size = 'medium',
+  size = 'small',
   helperText,
   width,
   sx,
